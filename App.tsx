@@ -55,6 +55,7 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
+  const isDarkMode = useColorScheme() === 'dark';
 
   return (
     <StoreProvider store={store}>
@@ -62,10 +63,14 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <SafeAreaProvider>
             <NavigationContainer theme={navTheme}>
-              <StatusBar
-                barStyle={'light-content'}
-              />
-              <SafeAreaView style={{ flexGrow: 1 }}>
+              {/* barStyle controls the icon/text color (dark-content = black).
+                  On RN 0.85 Android edge-to-edge the backgroundColor prop is
+                  ignored, so the white bar background is painted by the
+                  SafeAreaView below instead. */}
+              <StatusBar barStyle={'dark-content'} />
+              <SafeAreaView
+                style={{ flexGrow: 1, backgroundColor: '#ffffff' }}
+              >
                 <AppLayout>
                   <AppNavigator />
                 </AppLayout>
