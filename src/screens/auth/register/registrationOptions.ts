@@ -102,3 +102,52 @@ export const SOURCE_OF_WATER: SelectOption[] = [
   { label: 'River', value: 'river' },
   { label: 'Pond', value: 'pond' },
 ];
+
+// ─── Existing-pump details ────────────────────────────────────────────────
+// Only shown when "Beneficiary Existing Pump" is "Yes". Mirrors the legacy
+// portal's dropdowns.
+
+export const EXISTING_PUMP_CAPACITY: SelectOption[] = [
+  { label: '3 hp', value: '3' },
+  { label: '5 hp', value: '5' },
+  { label: '7.5 hp', value: '7.5' },
+  { label: '10 hp', value: '10' },
+];
+
+export const EXISTING_PUMP_TYPE: SelectOption[] = [
+  { label: 'AC', value: 'ac' },
+  { label: 'DC', value: 'dc' },
+];
+
+export const EXISTING_PUMP_SUBTYPE: SelectOption[] = [
+  { label: 'Submersible', value: 'submersible' },
+  { label: 'Surface', value: 'surface' },
+];
+
+export const PUMP_CATEGORY: SelectOption[] = [
+  { label: 'Oil filled', value: 'oil-filled' },
+  { label: 'Water Filled', value: 'water-filled' },
+];
+
+export const PUMP_FUEL: SelectOption[] = [
+  { label: 'Electricity', value: 'electricity' },
+  { label: 'Diesel', value: 'diesel' },
+  { label: 'Generator', value: 'generator' },
+];
+
+// ─── Auto-fill helpers ────────────────────────────────────────────────────
+
+// 1 acre = 4046.8564224 m². Used to derive "Area of Land in SqMtr" from acres.
+export const SQMTR_PER_ACRE = 4046.8564224;
+
+// Farmer contribution (INR) auto-filled from the selected required Pump
+// Capacity. PLACEHOLDER values — replace with the official PM-KUSUM fee slab
+// once the backend provides it. Keyed by PUMP_CAPACITY value (hp as string).
+export const PUMP_CAPACITY_CONTRIBUTION: Record<string, string> = {
+  '1': '15000',
+  '2': '20000',
+  '3': '25000',
+  '5': '40000',
+  '7.5': '55000',
+  '10': '70000',
+};

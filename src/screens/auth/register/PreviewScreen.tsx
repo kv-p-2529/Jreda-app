@@ -13,6 +13,7 @@ import {
   DeclarationValues,
   DocumentsValues,
   PersonalDetailsValues,
+  PickedFile,
   declarationSchema,
 } from './registrationSchemas';
 
@@ -42,12 +43,12 @@ const DOC_LABELS: { key: keyof DocumentsValues; label: string }[] = [
 
 function DocumentRow({
   label,
-  filename,
+  file,
 }: {
   label: string;
-  filename: string;
+  file: PickedFile | null;
 }) {
-  const uploaded = !!filename;
+  const uploaded = !!file;
   return (
     <View className="flex-row items-center mb-3">
       <View
@@ -66,9 +67,10 @@ function DocumentRow({
         </Text>
         <Text
           className="text-[12px] mt-0.5"
+          numberOfLines={1}
           style={{ color: uploaded ? '#16A34A' : '#EF4444' }}
         >
-          {uploaded ? filename : 'Not uploaded'}
+          {uploaded ? file.name : 'Not uploaded'}
         </Text>
       </View>
       {uploaded && (
@@ -78,7 +80,7 @@ function DocumentRow({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value?: string }) {
   return (
     <View className="mb-3">
       <Text className="text-[#6B7280] text-[12px]">{label}</Text>
@@ -294,7 +296,7 @@ function PreviewScreen({
           <DocumentRow
             key={doc.key}
             label={doc.label}
-            filename={documents[doc.key]}
+            file={documents[doc.key]}
           />
         ))}
       </FormSection>

@@ -10,6 +10,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Control, FieldValues, Path, useController } from 'react-hook-form';
 import FormField, {
+  DISABLED_BG,
   ERROR_BG,
   ERROR_BORDER,
   NEUTRAL_BG,
@@ -29,6 +30,8 @@ interface FormSelectProps<T extends FieldValues> {
   icon?: string;
   options: SelectOption[];
   placeholder?: string;
+  // Locked selection (e.g. fixed State): can't be opened, shown dimmed.
+  disabled?: boolean;
 }
 
 // rhf-bound dropdown rendered as a modal sheet so it works inside ScrollViews
@@ -41,6 +44,7 @@ export default function FormSelect<T extends FieldValues>({
   icon,
   options,
   placeholder = 'Please Select',
+  disabled,
 }: FormSelectProps<T>) {
   const { field, fieldState } = useController({ control, name });
   const [open, setOpen] = useState(false);
@@ -53,11 +57,18 @@ export default function FormSelect<T extends FieldValues>({
   return (
     <FormField label={label} required={required} icon={icon}>
       <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => setOpen(true)}
+        activeOpacity={disabled ? 1 : 0.85}
+        disabled={disabled}
+        onPress={() => {
+          if (!disabled) setOpen(true);
+        }}
         style={{
           height: 46,
-          backgroundColor: hasError ? ERROR_BG : NEUTRAL_BG,
+          backgroundColor: disabled
+            ? DISABLED_BG
+            : hasError
+            ? ERROR_BG
+            : NEUTRAL_BG,
           borderRadius: 10,
           borderWidth: 1,
           borderColor: hasError ? ERROR_BORDER : NEUTRAL_BORDER,
@@ -70,12 +81,14 @@ export default function FormSelect<T extends FieldValues>({
         <Text
           style={{
             fontSize: 14,
-            color: selected ? '#111111' : '#A0A0A0',
+            color: disabled ? '#6B7280' : selected ? '#111111' : '#A0A0A0',
           }}
         >
           {selected ? selected.label : placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={18} color="#6B7280" />
+        {!disabled && (
+          <Ionicons name="chevron-down" size={18} color="#6B7280" />
+        )}
       </TouchableOpacity>
 
       <Modal

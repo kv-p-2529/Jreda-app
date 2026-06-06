@@ -208,7 +208,7 @@ function RegisterIndex() {
         amount={amountString}
         onGoToDashboard={() => {
           setSuccessOpen(false);
-          navigation.navigate('Dashboard');
+          navigation.navigate('Login');
         }}
         onDownloadReceipt={() => {
           setSuccessOpen(false);

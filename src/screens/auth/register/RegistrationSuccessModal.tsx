@@ -101,7 +101,7 @@ export default function RegistrationSuccessModal({
           </View>
 
           <Button
-            title="Go to Dashboard"
+            title="Login Now"
             onPress={onGoToDashboard}
             className="bg-[#1382F5] py-3 mb-3"
             textClassName="text-[16px]"

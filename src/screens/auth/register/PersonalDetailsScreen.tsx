@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -29,17 +29,27 @@ import {
   CONTROLLER_TYPE,
   CROP_TYPE,
   DISTRICTS,
+  EXISTING_PUMP_CAPACITY,
+  EXISTING_PUMP_SUBTYPE,
+  EXISTING_PUMP_TYPE,
   GENDER,
   PUMP_CAPACITY,
+  PUMP_CAPACITY_CONTRIBUTION,
+  PUMP_CATEGORY,
+  PUMP_FUEL,
   PUMP_SUB_TYPE,
   PUMP_TYPE,
   SOURCE_OF_IRRIGATION,
   SOURCE_OF_WATER,
+  SQMTR_PER_ACRE,
   STATES,
   TALUKAS,
   VILLAGES,
   YES_NO,
 } from './registrationOptions';
+
+// State is fixed to Jharkhand for this portal — the value stored in the form.
+const FIXED_STATE = 'jharkhand';
 
 type Props = {
   defaultValues?: Partial<PersonalDetailsValues>;
@@ -66,10 +76,19 @@ const initialValues: PersonalDetailsValues = {
   gender: '',
   mobile: '',
   email: '',
-  residential: { ...emptyAddress },
+  // State is pre-set and locked to Jharkhand in both addresses.
+  residential: { ...emptyAddress, state: FIXED_STATE },
   beneficiaryExistingPump: '',
+  // Existing-pump details — populated only when the user has an existing pump.
+  existingPumpCapacity: '',
+  existingPumpType: '',
+  existingPumpSubType: '',
+  pumpCategory: '',
+  generation: '',
+  pumpFuel: '',
   location: {
     ...emptyAddress,
+    state: FIXED_STATE,
     areaInAcres: '',
     areaInSqMtr: '',
     lagaanRasidDate: '',
@@ -88,10 +107,35 @@ const initialValues: PersonalDetailsValues = {
 };
 
 function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
-  const { control, handleSubmit } = useForm<PersonalDetailsValues>({
+  const { control, handleSubmit, setValue } = useForm<PersonalDetailsValues>({
     // resolver: zodResolver(personalDetailsSchema),
     defaultValues: { ...initialValues, ...defaultValues },
   });
+
+  // Fields that drive auto-calculated values. useWatch re-renders only this
+  // component when they change (not the whole form tree).
+  const areaInAcres = useWatch({ control, name: 'location.areaInAcres' });
+  const selectedPumpCapacity = useWatch({ control, name: 'pumpCapacity' });
+  const hasExistingPump =
+    useWatch({ control, name: 'beneficiaryExistingPump' }) === 'yes';
+
+  // Area in SqMtr is derived from acres and shown read-only. Blank acres ->
+  // blank SqMtr so the field doesn't show "0" before the user types.
+  useEffect(() => {
+    const acres = parseFloat(areaInAcres ?? '');
+    const sqMtr = Number.isNaN(acres)
+      ? ''
+      : (acres * SQMTR_PER_ACRE).toFixed(2);
+    setValue('location.areaInSqMtr', sqMtr);
+  }, [areaInAcres, setValue]);
+
+  // Farmer contribution (INR) is auto-filled from the selected pump capacity.
+  useEffect(() => {
+    setValue(
+      'farmerContribution',
+      PUMP_CAPACITY_CONTRIBUTION[selectedPumpCapacity ?? ''] ?? '',
+    );
+  }, [selectedPumpCapacity, setValue]);
 
   return (
     <View className="my-4">
@@ -163,6 +207,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           label="Select State"
           required
           options={STATES}
+          disabled
         />
         <FormSelect
           control={control}
@@ -206,14 +251,12 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           control={control}
           name="residential.policeStation"
           label="Police Station Name"
-          required
           placeholder="Please Enter Police Station Name"
         />
         <FormInput
           control={control}
           name="residential.postOffice"
           label="Post Office Name"
-          required
           placeholder="Please Enter Post Office Name"
         />
         <FormInput
@@ -236,6 +279,60 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           required
           options={YES_NO}
         />
+
+        {/* Existing-pump details — revealed only when the beneficiary already
+            has a pump. Asterisks mark the mandatory ones; Generation is not. */}
+        {hasExistingPump && (
+          <>
+            <FormSelect
+              control={control}
+              name="existingPumpCapacity"
+              label="Pump Capacity"
+              required
+              options={EXISTING_PUMP_CAPACITY}
+              placeholder="Please Select"
+            />
+            <FormSelect
+              control={control}
+              name="existingPumpType"
+              label="Types of Existing Pump Subtype"
+              required
+              options={EXISTING_PUMP_TYPE}
+              placeholder="Please Select"
+            />
+            <FormSelect
+              control={control}
+              name="existingPumpSubType"
+              label="Types of Existing Pump Subtype"
+              required
+              options={EXISTING_PUMP_SUBTYPE}
+              placeholder="Please Select"
+            />
+            <FormSelect
+              control={control}
+              name="pumpCategory"
+              label="Pump Category"
+              required
+              options={PUMP_CATEGORY}
+              placeholder="Please Select"
+            />
+            <FormSelect
+              control={control}
+              name="generation"
+              label="Select Generation"
+              options={YES_NO}
+              placeholder="Please Select"
+            />
+            <FormSelect
+              control={control}
+              name="pumpFuel"
+              label="Fuel the Pump is Working"
+              required
+              options={PUMP_FUEL}
+              placeholder="Please Select"
+            />
+          </>
+        )}
       </FormSection>
 
       {/* LOCATION ADDRESS */}
@@ -246,6 +343,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           label="Select State"
           required
           options={STATES}
+          disabled
         />
         <FormSelect
           control={control}
@@ -289,14 +387,12 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           control={control}
           name="location.policeStation"
           label="Police Station Name"
-          required
           placeholder="Please Enter Police Station Name"
         />
         <FormInput
           control={control}
           name="location.postOffice"
           label="Post Office Name"
-          required
           placeholder="Please Enter Post Office Name"
         />
         <FormInput
@@ -321,8 +417,9 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="location.areaInSqMtr"
           label="Area Of Land In SqMtr"
           required
-          placeholder="Area of Land in SqMtr"
+          placeholder="Auto-calculated from acres"
           keyboardType="decimal-pad"
+          disabled
         />
         <FormDate
           control={control}
@@ -371,10 +468,11 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
         <FormInput
           control={control}
           name="farmerContribution"
-          label="Pump Capacity"
+          label="Pump Capacity (INR)"
           required
-          placeholder="Farmer Contribution INR"
+          placeholder="Auto-filled from Pump Capacity"
           keyboardType="decimal-pad"
+          disabled
         />
       </FormSection>
 
@@ -384,14 +482,12 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           control={control}
           name="cropTypeLast"
           label="Crop Type (Last Year)"
-          required
           options={CROP_TYPE}
         />
         <FormInput
           control={control}
           name="cropCountLast"
           label="Crop Count (Last Year)"
-          required
           placeholder="No. of Crops in previous year"
           keyboardType="number-pad"
         />
@@ -399,14 +495,12 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           control={control}
           name="cropTypeLastToLast"
           label="Crop Type (Last To Last Year)"
-          required
           options={CROP_TYPE}
         />
         <FormInput
           control={control}
           name="cropCountLastToLast"
           label="Crop Count (Last To Last Year)"
-          required
           placeholder="No. of Crops in previous year"
           keyboardType="number-pad"
         />

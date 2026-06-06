@@ -2,6 +2,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Document upload (registration step 3). The picker uses the Storage
+         Access Framework, but these let the app read user-selected images/files
+         on older devices and Android 13+ (scoped media) respectively. -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"

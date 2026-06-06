@@ -51,3 +51,6 @@ export const ERROR_BG = '#FEF2F2';
 export const ERROR_BORDER = '#EF4444';
 export const NEUTRAL_BG = '#F5F5F5';
 export const NEUTRAL_BORDER = 'transparent';
+// Read-only / disabled controls — visibly greyer than NEUTRAL so users can
+// tell at a glance the field can't be edited (fixed state, auto-calc values).
+export const DISABLED_BG = '#E5E7EB';

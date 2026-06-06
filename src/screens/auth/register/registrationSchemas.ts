@@ -32,8 +32,9 @@ const addressSchema = z.object({
   village: z.string().min(1, 'Required'),
   block: z.string().min(1, 'Required'),
   panchayat: z.string().min(1, 'Required'),
-  policeStation: z.string().min(1, 'Required'),
-  postOffice: z.string().min(1, 'Required'),
+  // Police Station & Post Office are optional — empty string is valid.
+  policeStation: z.string().optional(),
+  postOffice: z.string().optional(),
   pinCode: z
     .string()
     .min(6, 'Pin code must be 6 digits')
@@ -63,6 +64,16 @@ export const personalDetailsSchema = z.object({
   // Pump
   beneficiaryExistingPump: z.string().min(1, 'Required'),
 
+  // Existing-pump details — only required when beneficiaryExistingPump === 'yes'
+  // (enforced in the superRefine below). Optional at the field level so the
+  // form validates fine when the user has no existing pump.
+  existingPumpCapacity: z.string().optional(),
+  existingPumpType: z.string().optional(),
+  existingPumpSubType: z.string().optional(),
+  pumpCategory: z.string().optional(),
+  generation: z.string().optional(), // never required (no asterisk in UI)
+  pumpFuel: z.string().optional(),
+
   // Location (land)
   location: addressSchema.extend({
     areaInAcres: z
@@ -86,32 +97,75 @@ export const personalDetailsSchema = z.object({
     .min(1, 'Required')
     .regex(/^\d+(\.\d+)?$/, 'Invalid amount'),
 
-  // Irrigation
-  cropTypeLast: z.string().min(1, 'Required'),
-  cropCountLast: z.string().min(1, 'Required'),
-  cropTypeLastToLast: z.string().min(1, 'Required'),
-  cropCountLastToLast: z.string().min(1, 'Required'),
+  // Irrigation — only Source of Irrigation & Source of Water are mandatory;
+  // the crop type/count fields are optional.
+  cropTypeLast: z.string().optional(),
+  cropCountLast: z.string().optional(),
+  cropTypeLastToLast: z.string().optional(),
+  cropCountLastToLast: z.string().optional(),
   sourceOfIrrigation: z.string().min(1, 'Required'),
   sourceOfWater: z.string().min(1, 'Required'),
+}).superRefine((data, ctx) => {
+  // When the beneficiary has an existing pump, its detail fields become
+  // mandatory (Generation stays optional — no asterisk in the UI).
+  if (data.beneficiaryExistingPump === 'yes') {
+    const requiredWhenYes = [
+      'existingPumpCapacity',
+      'existingPumpType',
+      'existingPumpSubType',
+      'pumpCategory',
+      'pumpFuel',
+    ] as const;
+    requiredWhenYes.forEach(key => {
+      if (!data[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Required',
+          path: [key],
+        });
+      }
+    });
+  }
 });
 export type PersonalDetailsValues = z.infer<typeof personalDetailsSchema>;
 
-export const documentsSchema = z.object({
-  addressProof: z.string().min(1, 'Upload required'),
-  landLagaanRasid: z.string().min(1, 'Upload required'),
-  signature: z.string().min(1, 'Upload required'),
-  photograph: z.string().min(1, 'Upload required'),
+// A file picked from the device. `uri` is what we'll POST when the upload
+// endpoint lands (a content:// uri on Android, file:// on iOS); `name`/`type`/
+// `size` come straight off the document picker and drive the UI + validation.
+export const pickedFileSchema = z.object({
+  uri: z.string().min(1),
+  name: z.string().min(1),
+  type: z.string().nullable(),
+  size: z.number().nullable(),
 });
-export type DocumentsValues = z.infer<typeof documentsSchema>;
+export type PickedFile = z.infer<typeof pickedFileSchema>;
+
+// Each document is required: the field holds `null` until a file is picked, and
+// the refine turns a still-null field into the "Upload required" error. We keep
+// the field nullable (rather than non-optional) so rhf can seed `null` defaults.
+const requiredDocument = pickedFileSchema
+  .nullable()
+  .refine((v): v is PickedFile => v != null, { message: 'Upload required' });
+
+export const documentsSchema = z.object({
+  addressProof: requiredDocument,
+  landLagaanRasid: requiredDocument,
+  signature: requiredDocument,
+  photograph: requiredDocument,
+});
+// Input vs output differ here: the refine's type-guard narrows each field from
+// `PickedFile | null` (the form's working state, `DocumentsInput`) down to a
+// guaranteed `PickedFile` once validation passes (`DocumentsValues`, what every
+// downstream consumer receives). rhf's useForm takes both as generics.
+export type DocumentsInput = z.input<typeof documentsSchema>;
+export type DocumentsValues = z.output<typeof documentsSchema>;
 
 export const declarationSchema = z.object({
   detailsCorrect: z.literal(true, {
-    errorMap: () => ({ message: 'You must confirm the details are correct' }),
+    error: 'You must confirm the details are correct',
   }),
   paymentUnderstood: z.literal(true, {
-    errorMap: () => ({
-      message: 'You must accept the payment terms',
-    }),
+    error: 'You must accept the payment terms',
   }),
 });
 export type DeclarationValues = z.infer<typeof declarationSchema>;

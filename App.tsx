@@ -55,7 +55,6 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
-  const isDarkMode = useColorScheme() === 'dark';
 
   return (
     <StoreProvider store={store}>
@@ -64,8 +63,7 @@ export default function App() {
           <SafeAreaProvider>
             <NavigationContainer theme={navTheme}>
               <StatusBar
-                barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-                backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
+                barStyle={'light-content'}
               />
               <SafeAreaView style={{ flexGrow: 1 }}>
                 <AppLayout>
