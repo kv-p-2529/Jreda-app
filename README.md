@@ -46,25 +46,26 @@ Core characteristics:
 ---
 
 ## Tech Stack
-| Category         | Library / Tool                                              | Version           |
-|------------------|-------------------------------------------------------------|-------------------|
-| **Framework**    | react-native                                                | 0.85.3            |
-| **UI runtime**   | react                                                        | 19.2.3            |
-| **Language**     | typescript                                                  | 5.8.3             |
-| **Navigation**   | @react-navigation/native, native-stack                      | ^7.2.4 / ^7.15.1  |
-| **Screens/Safe** | react-native-screens, react-native-safe-area-context        | ^4.25.2 / ^5.5.2  |
-| **State**        | @reduxjs/toolkit, react-redux                               | ^2.12.0 / ^9.3.0  |
-| **Persistence**  | redux-persist + @react-native-async-storage/async-storage   | ^6.0.0 / ^3.1.0   |
-| **Server State** | @tanstack/react-query                                       | ^5.100.11         |
-| **HTTP**         | axios                                                       | ^1.16.1           |
-| **Forms**        | react-hook-form + @hookform/resolvers + zod                 | ^7.76.0 / ^5.4.0 / ^4.4.3 |
-| **Styling**      | nativewind + tailwindcss                                    | ^4.0.36 / ^3.4.19 |
-| **Charts**       | react-native-gifted-charts, react-native-svg               | ^1.4.77 / ^15.15.5 |
-| **Media/UI**     | react-native-video, react-native-linear-gradient, react-native-swiper, react-native-reanimated-skeleton | ^6.19.2 / ^2.8.3 / ^1.6.0 / ^1.6.0 |
-| **Payments**     | react-native-razorpay                                       | ^3.0.0            |
+| Category         | Library / Tool                                              | Version                            |
+|------------------|-------------------------------------------------------------|------------------------------------|
+| **Framework**    | react-native                                                | 0.85.3                             |
+| **UI runtime**   | react                                                       | 19.2.3                             |
+| **Language**     | typescript                                                  | 5.8.3                              |
+| **Navigation**   | @react-navigation/native, native-stack                      | ^7.2.4 / ^7.15.1                   |
+| **Screens/Safe** | react-native-screens, react-native-safe-area-context        | ^4.25.2 / ^5.5.2                   |
+| **State**        | @reduxjs/toolkit, react-redux                               | ^2.12.0 / ^9.3.0                   |
+| **Persistence**  | redux-persist + @react-native-async-storage/async-storage   | ^6.0.0 / ^3.1.0                    |
+| **Server State** | @tanstack/react-query                                       | ^5.100.11                          |
+| **HTTP**         | axios                                                       | ^1.16.1                            |
+| **Forms**        | react-hook-form + @hookform/resolvers + zod                 | ^7.76.0 / ^5.4.0 / ^4.4.3          |
+| **Styling**      | nativewind + tailwindcss                                    | ^4.0.36 / ^3.4.19                  |
+| **Charts**       | react-native-gifted-charts, react-native-svg                | ^1.4.77 / ^15.15.5                 |
+| **Media/UI**     | react-native-video, react-native-linear-gradient, 
+                     react-native-swiper, react-native-reanimated-skeleton       | ^6.19.2 / ^2.8.3 / ^1.6.0 / ^1.6.0 |
+| **Payments**     | react-native-razorpay                                       | ^3.0.0                             |
 | **Icons**        | @react-native-vector-icons/* (ant-design, feather, fontawesome, fontawesome6, ionicons, material-icons, simple-line-icons) | ^13.1.x |
-| **Testing**      | jest + react-test-renderer                                  | ^29.6.3 / 19.2.3  |
-| **Lint/Format**  | eslint + prettier                                           | ^8.19.0 / 2.8.8   |
+| **Testing**      | jest + react-test-renderer                                  | ^29.6.3 / 19.2.3                   |
+| **Lint/Format**  | eslint + prettier                                           | ^8.19.0 / 2.8.8                    |
 
 > JS engine: **Hermes** (enabled in `android/gradle.properties`). Node **≥ 22.11**.
 
@@ -172,9 +173,9 @@ Redux Provider → PersistGate → QueryClientProvider → SafeAreaProvider
 Routes are typed in `RootStackParamList` (`src/navigation/AppNavigator.tsx`).
 
 **Public (unauthenticated) stack**
-| Route      | Screen                          |
-|------------|---------------------------------|
-| `Home`     | `screens/home/HomeScreen`       |
+| Route      | Screen                                             |
+|------------|----------------------------------------------------|
+| `Home`     | `screens/home/HomeScreen`                          |
 | `Register` | `screens/auth/register/RegisterIndex` (multi‑step) |
 
 **Authenticated stack**
@@ -241,11 +242,11 @@ npm run lint        # eslint .
 ---
 
 ## Building & Release
-| Platform    | Command                                            |
-|-------------|----------------------------------------------------|
-| **Android (APK)** | `cd android && ./gradlew assembleRelease`    |
-| **Android (AAB)** | `cd android && ./gradlew bundleRelease`      |
-| **iOS**     | Open `ios/PMKUSUM.xcworkspace` in Xcode → Archive  |
+| Platform          | Command                                            |
+|-------------------|----------------------------------------------------|
+| **Android (APK)** | `cd android && ./gradlew assembleRelease`          |
+| **Android (AAB)** | `cd android && ./gradlew bundleRelease`            |
+| **iOS**           | Open `ios/PMKUSUM.xcworkspace` in Xcode → Archive  |
 
 Android build notes (`android/app/build.gradle`):
 - Per‑architecture **ABI splits** are enabled (`armeabi-v7a`, `arm64-v8a`,

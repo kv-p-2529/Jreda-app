@@ -135,6 +135,19 @@ export const PUMP_FUEL: SelectOption[] = [
   { label: 'Generator', value: 'generator' },
 ];
 
+// ─── Display helpers ──────────────────────────────────────────────────────
+
+// Map a stored option `value` back to its human-readable `label` for read-only
+// displays (e.g. the preview step). Falls back to the raw value if it's not in
+// the list — better to show something than blank if data drifts from options.
+export function getOptionLabel(
+  options: SelectOption[],
+  value?: string,
+): string {
+  if (!value) return '';
+  return options.find(o => o.value === value)?.label ?? value;
+}
+
 // ─── Auto-fill helpers ────────────────────────────────────────────────────
 
 // 1 acre = 4046.8564224 m². Used to derive "Area of Land in SqMtr" from acres.

@@ -16,6 +16,25 @@ import {
   PickedFile,
   declarationSchema,
 } from './registrationSchemas';
+import {
+  APPLICANT_CATEGORY,
+  APPLICATION_CATEGORY,
+  BLOCKS,
+  CONTROLLER_TYPE,
+  CROP_TYPE,
+  DISTRICTS,
+  GENDER,
+  PUMP_CAPACITY,
+  PUMP_SUB_TYPE,
+  PUMP_TYPE,
+  SOURCE_OF_IRRIGATION,
+  SOURCE_OF_WATER,
+  STATES,
+  TALUKAS,
+  VILLAGES,
+  YES_NO,
+  getOptionLabel,
+} from './registrationOptions';
 
 // Step 4 — read-only review of everything captured so far, plus two
 // declaration checkboxes the user must tick before proceeding to payment.
@@ -167,12 +186,15 @@ function PreviewScreen({
       >
         <Row
           label="Application Category :"
-          value={details.applicationCategory}
+          value={getOptionLabel(APPLICATION_CATEGORY, details.applicationCategory)}
         />
         <Row label="Name Of Applicant :" value={details.applicantName} />
         <Row label="Father/Husband Name :" value={details.fatherName} />
-        <Row label="Applicant Category :" value={details.applicantCategory} />
-        <Row label="Select Gender :" value={details.gender} />
+        <Row
+          label="Applicant Category :"
+          value={getOptionLabel(APPLICANT_CATEGORY, details.applicantCategory)}
+        />
+        <Row label="Select Gender :" value={getOptionLabel(GENDER, details.gender)} />
         <Row label="Mobile No :" value={details.mobile} />
         <Row label="Email Address :" value={details.email || '-'} />
       </FormSection>
@@ -182,14 +204,26 @@ function PreviewScreen({
         icon="home-outline"
         onEdit={onEditDetails}
       >
-        <Row label="Select State :" value={details.residential.state} />
-        <Row label="Select District :" value={details.residential.district} />
-        <Row label="Select Taluka :" value={details.residential.taluka} />
+        <Row
+          label="Select State :"
+          value={getOptionLabel(STATES, details.residential.state)}
+        />
+        <Row
+          label="Select District :"
+          value={getOptionLabel(DISTRICTS, details.residential.district)}
+        />
+        <Row
+          label="Select Taluka :"
+          value={getOptionLabel(TALUKAS, details.residential.taluka)}
+        />
         <Row
           label="Select Village/City :"
-          value={details.residential.village}
+          value={getOptionLabel(VILLAGES, details.residential.village)}
         />
-        <Row label="Select Block :" value={details.residential.block} />
+        <Row
+          label="Select Block :"
+          value={getOptionLabel(BLOCKS, details.residential.block)}
+        />
         <Row label="Panchayat Name :" value={details.residential.panchayat} />
         <Row
           label="Police Station Name :"
@@ -209,7 +243,7 @@ function PreviewScreen({
       >
         <Row
           label="Beneficiary Existing Pump *"
-          value={details.beneficiaryExistingPump}
+          value={getOptionLabel(YES_NO, details.beneficiaryExistingPump)}
         />
       </FormSection>
 
@@ -218,14 +252,26 @@ function PreviewScreen({
         icon="location-outline"
         onEdit={onEditDetails}
       >
-        <Row label="Select State :" value={details.location.state} />
-        <Row label="Select District :" value={details.location.district} />
-        <Row label="Select Taluka :" value={details.location.taluka} />
+        <Row
+          label="Select State :"
+          value={getOptionLabel(STATES, details.location.state)}
+        />
+        <Row
+          label="Select District :"
+          value={getOptionLabel(DISTRICTS, details.location.district)}
+        />
+        <Row
+          label="Select Taluka :"
+          value={getOptionLabel(TALUKAS, details.location.taluka)}
+        />
         <Row
           label="Select Village/City :"
-          value={details.location.village}
+          value={getOptionLabel(VILLAGES, details.location.village)}
         />
-        <Row label="Select Block :" value={details.location.block} />
+        <Row
+          label="Select Block :"
+          value={getOptionLabel(BLOCKS, details.location.block)}
+        />
         <Row label="Panchayat Name :" value={details.location.panchayat} />
         <Row
           label="Police Station Name :"
@@ -255,10 +301,22 @@ function PreviewScreen({
         icon="construct-outline"
         onEdit={onEditDetails}
       >
-        <Row label="Pump Capacity :" value={details.pumpCapacity} />
-        <Row label="Pump Type :" value={details.pumpType} />
-        <Row label="Pump Sub Type :" value={details.pumpSubType} />
-        <Row label="Controller Type :" value={details.controllerType} />
+        <Row
+          label="Pump Capacity :"
+          value={getOptionLabel(PUMP_CAPACITY, details.pumpCapacity)}
+        />
+        <Row
+          label="Pump Type :"
+          value={getOptionLabel(PUMP_TYPE, details.pumpType)}
+        />
+        <Row
+          label="Pump Sub Type :"
+          value={getOptionLabel(PUMP_SUB_TYPE, details.pumpSubType)}
+        />
+        <Row
+          label="Controller Type :"
+          value={getOptionLabel(CONTROLLER_TYPE, details.controllerType)}
+        />
         <Row label="Pump Capacity :" value={details.farmerContribution} />
       </FormSection>
 
@@ -267,14 +325,17 @@ function PreviewScreen({
         icon="leaf-outline"
         onEdit={onEditDetails}
       >
-        <Row label="Crop Type (Last Year) :" value={details.cropTypeLast} />
+        <Row
+          label="Crop Type (Last Year) :"
+          value={getOptionLabel(CROP_TYPE, details.cropTypeLast)}
+        />
         <Row
           label="Crop Count (Last Year) :"
           value={details.cropCountLast}
         />
         <Row
           label="Crop Type (Last To Last Year) :"
-          value={details.cropTypeLastToLast}
+          value={getOptionLabel(CROP_TYPE, details.cropTypeLastToLast)}
         />
         <Row
           label="Crop Count (Last To Last Year) :"
@@ -282,9 +343,12 @@ function PreviewScreen({
         />
         <Row
           label="Source Of Irrigation :"
-          value={details.sourceOfIrrigation}
+          value={getOptionLabel(SOURCE_OF_IRRIGATION, details.sourceOfIrrigation)}
         />
-        <Row label="Source Of Water :" value={details.sourceOfWater} />
+        <Row
+          label="Source Of Water :"
+          value={getOptionLabel(SOURCE_OF_WATER, details.sourceOfWater)}
+        />
       </FormSection>
 
       <FormSection
