@@ -5,11 +5,51 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import DashHOC from '@/components/DashHOC';
 import Spacer from '@/components/ui/Spacer';
 import Button from '@/components/ui/Button';
-import SurveyField from './components/SurveyField';
+import SurveyField, { SurveyFieldProps } from './components/SurveyField';
 
 // "Site Survey" tracking page — VIEW ONLY. No search row; a geo card followed by
 // the captured survey as read-only icon-labelled fields. Values are seeded to
 // the design; point these at the survey record once the API lands.
+
+// The survey body is a flat list of identical icon-labelled fields, so we
+// describe them as data and map over it. Grouped here the same way the design
+// groups them (identity → meta → location → land → site suitability); replace
+// the seeded values with the survey record once the API lands.
+const SURVEY_FIELDS: SurveyFieldProps[] = [
+  // Applicant identity (plain values)
+  { icon: 'person-outline', label: 'Applicant Name', value: 'Agast Panday', variant: 'value' },
+  { icon: 'people-outline', label: 'Father / Husband Name', value: 'Lt. Jagdish Panday', variant: 'value' },
+  { icon: 'call-outline', label: 'Application Contact No.', value: '7050349878', variant: 'value' },
+  // Application meta
+  { icon: 'document-text-outline', label: 'Type of Application', value: 'Farmer' },
+  { icon: 'grid-outline', label: 'Applicant Category', value: 'General' },
+  // Location
+  { icon: 'location-outline', label: 'Name of District', value: 'PALAMU' },
+  { icon: 'location-outline', label: 'Name of Taluka' },
+  { icon: 'location-outline', label: 'Name of Village' },
+  { icon: 'location-outline', label: 'Name of Block', value: 'TARHASI' },
+  // Land
+  {
+    icon: 'resize-outline',
+    label: 'Land coverage Area',
+    subLabel: '(Sq. Meter)',
+    placeholder: 'Enter area in sq. meter',
+    variant: 'input',
+  },
+  { icon: 'document-outline', label: 'Khasra No.', placeholder: 'Enter Khasra No.', variant: 'input' },
+  { icon: 'document-outline', label: 'Killa No.', placeholder: 'Enter Kill No.', variant: 'input' },
+  // Site suitability
+  {
+    icon: 'sunny-outline',
+    label:
+      'Is south facing shadow free land available at site for installation of solar pump',
+  },
+  { icon: 'water-outline', label: 'UGPL/Sprinkler/Drip irrigation installed', value: 'Micro Irrigation' },
+  { icon: 'speedometer-outline', label: 'Water Depth Level at site (in ft.)', value: '85 ft.', variant: 'input' },
+  { icon: 'water-outline', label: 'Source of Water' },
+  { icon: 'ellipse-outline', label: 'Size of Existing bore well (in inches)', value: '12 in.', variant: 'input' },
+  { icon: 'flash-outline', label: 'Source of power for existing pump' },
+];
 
 function Survey() {
   return (
@@ -39,100 +79,9 @@ function Survey() {
           <Ionicons name="locate" size={20} color="#1382F5" />
         </View>
 
-        {/* Applicant identity (plain values) */}
-        <SurveyField
-          icon="person-outline"
-          label="Applicant Name"
-          value="Agast Panday"
-          variant="value"
-        />
-        <SurveyField
-          icon="people-outline"
-          label="Father / Husband Name"
-          value="Lt. Jagdish Panday"
-          variant="value"
-        />
-        <SurveyField
-          icon="call-outline"
-          label="Application Contact No."
-          value="7050349878"
-          variant="value"
-        />
-
-        {/* Application meta */}
-        <SurveyField
-          icon="document-text-outline"
-          label="Type of Application"
-          value="Farmer"
-        />
-        <SurveyField
-          icon="grid-outline"
-          label="Applicant Category"
-          value="General"
-        />
-
-        {/* Location */}
-        <SurveyField
-          icon="location-outline"
-          label="Name of District"
-          value="PALAMU"
-        />
-        <SurveyField icon="location-outline" label="Name of Taluka" />
-        <SurveyField icon="location-outline" label="Name of Village" />
-        <SurveyField
-          icon="location-outline"
-          label="Name of Block"
-          value="TARHASI"
-        />
-
-        {/* Land */}
-        <SurveyField
-          icon="resize-outline"
-          label="Land coverage Area"
-          subLabel="(Sq. Meter)"
-          placeholder="Enter area in sq. meter"
-          variant="input"
-        />
-        <SurveyField
-          icon="document-outline"
-          label="Khasra No."
-          placeholder="Enter Khasra No."
-          variant="input"
-        />
-        <SurveyField
-          icon="document-outline"
-          label="Killa No."
-          placeholder="Enter Kill No."
-          variant="input"
-        />
-
-        {/* Site suitability */}
-        <SurveyField
-          icon="sunny-outline"
-          label="Is south facing shadow free land available at site for installation of solar pump"
-        />
-        <SurveyField
-          icon="water-outline"
-          label="UGPL/Sprinkler/Drip irrigation installed"
-          value="Micro Irrigation"
-        />
-        <SurveyField
-          icon="speedometer-outline"
-          label="Water Depth Level at site (in ft.)"
-          value="85 ft."
-          variant="input"
-        />
-        <SurveyField icon="water-outline" label="Source of Water" />
-        <SurveyField
-          icon="ellipse-outline"
-          label="Size of Existing bore well (in inches)"
-          value="12 in."
-          variant="input"
-        />
-        <SurveyField
-          icon="flash-outline"
-          label="Source of power for existing pump"
-        />
+        {SURVEY_FIELDS.map(field => (
+          <SurveyField key={field.label} {...field} />
+        ))}
 
         {/* Certification (view-only, shown as confirmed) */}
         <View

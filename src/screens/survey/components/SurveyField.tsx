@@ -12,7 +12,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 type Variant = 'value' | 'input' | 'dropdown';
 
-interface SurveyFieldProps {
+export interface SurveyFieldProps {
   icon: string;
   label: string;
   subLabel?: string;

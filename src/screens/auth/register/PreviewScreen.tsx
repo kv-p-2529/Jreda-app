@@ -175,181 +175,122 @@ function PreviewScreen({
     },
   });
 
+  // All the read-only detail cards are structurally identical (titled card +
+  // a list of label/value rows), so we describe them as data and map over it
+  // instead of hand-writing every <FormSection>/<Row>. Select-backed fields run
+  // through getOptionLabel so the user sees labels, not stored values; the rest
+  // are plain text. Every card edits the same step, so onEdit is onEditDetails.
+  const detailSections: {
+    title: string;
+    icon: string;
+    rows: { label: string; value?: string }[];
+  }[] = [
+    {
+      title: 'Personal Details',
+      icon: 'person-outline',
+      rows: [
+        {
+          label: 'Application Category :',
+          value: getOptionLabel(APPLICATION_CATEGORY, details.applicationCategory),
+        },
+        { label: 'Name Of Applicant :', value: details.applicantName },
+        { label: 'Father/Husband Name :', value: details.fatherName },
+        {
+          label: 'Applicant Category :',
+          value: getOptionLabel(APPLICANT_CATEGORY, details.applicantCategory),
+        },
+        { label: 'Select Gender :', value: getOptionLabel(GENDER, details.gender) },
+        { label: 'Mobile No :', value: details.mobile },
+        { label: 'Email Address :', value: details.email },
+      ],
+    },
+    {
+      title: 'Residential Address',
+      icon: 'home-outline',
+      rows: [
+        { label: 'Select State :', value: getOptionLabel(STATES, details.residential.state) },
+        { label: 'Select District :', value: getOptionLabel(DISTRICTS, details.residential.district) },
+        { label: 'Select Taluka :', value: getOptionLabel(TALUKAS, details.residential.taluka) },
+        { label: 'Select Village/City :', value: getOptionLabel(VILLAGES, details.residential.village) },
+        { label: 'Select Block :', value: getOptionLabel(BLOCKS, details.residential.block) },
+        { label: 'Panchayat Name :', value: details.residential.panchayat },
+        { label: 'Police Station Name :', value: details.residential.policeStation },
+        { label: 'Post Office Name :', value: details.residential.postOffice },
+        { label: 'Enter Pin Code :', value: details.residential.pinCode },
+      ],
+    },
+    {
+      title: 'Pump Details',
+      icon: 'water-outline',
+      rows: [
+        {
+          label: 'Beneficiary Existing Pump *',
+          value: getOptionLabel(YES_NO, details.beneficiaryExistingPump),
+        },
+      ],
+    },
+    {
+      title: 'Location Address',
+      icon: 'location-outline',
+      rows: [
+        { label: 'Select State :', value: getOptionLabel(STATES, details.location.state) },
+        { label: 'Select District :', value: getOptionLabel(DISTRICTS, details.location.district) },
+        { label: 'Select Taluka :', value: getOptionLabel(TALUKAS, details.location.taluka) },
+        { label: 'Select Village/City :', value: getOptionLabel(VILLAGES, details.location.village) },
+        { label: 'Select Block :', value: getOptionLabel(BLOCKS, details.location.block) },
+        { label: 'Panchayat Name :', value: details.location.panchayat },
+        { label: 'Police Station Name :', value: details.location.policeStation },
+        { label: 'Post Office Name :', value: details.location.postOffice },
+        { label: 'Enter Pin Code :', value: details.location.pinCode },
+        { label: 'Area Of Land In Acres :', value: details.location.areaInAcres },
+        { label: 'Area Of Land In SqMtr :', value: details.location.areaInSqMtr },
+        {
+          label: 'Laste Date Of Lagaan Rasid/Rent Receipt Of Land :',
+          value: details.location.lagaanRasidDate,
+        },
+      ],
+    },
+    {
+      title: 'Required Pump Details',
+      icon: 'construct-outline',
+      rows: [
+        { label: 'Pump Capacity :', value: getOptionLabel(PUMP_CAPACITY, details.pumpCapacity) },
+        { label: 'Pump Type :', value: getOptionLabel(PUMP_TYPE, details.pumpType) },
+        { label: 'Pump Sub Type :', value: getOptionLabel(PUMP_SUB_TYPE, details.pumpSubType) },
+        { label: 'Controller Type :', value: getOptionLabel(CONTROLLER_TYPE, details.controllerType) },
+        { label: 'Pump Capacity :', value: details.farmerContribution },
+      ],
+    },
+    {
+      title: 'Irrigation Details',
+      icon: 'leaf-outline',
+      rows: [
+        { label: 'Crop Type (Last Year) :', value: getOptionLabel(CROP_TYPE, details.cropTypeLast) },
+        { label: 'Crop Count (Last Year) :', value: details.cropCountLast },
+        { label: 'Crop Type (Last To Last Year) :', value: getOptionLabel(CROP_TYPE, details.cropTypeLastToLast) },
+        { label: 'Crop Count (Last To Last Year) :', value: details.cropCountLastToLast },
+        { label: 'Source Of Irrigation :', value: getOptionLabel(SOURCE_OF_IRRIGATION, details.sourceOfIrrigation) },
+        { label: 'Source Of Water :', value: getOptionLabel(SOURCE_OF_WATER, details.sourceOfWater) },
+      ],
+    },
+  ];
+
   return (
     <View className="my-4">
       <StepIndicator current={4} />
 
-      <FormSection
-        title="Personal Details"
-        icon="person-outline"
-        onEdit={onEditDetails}
-      >
-        <Row
-          label="Application Category :"
-          value={getOptionLabel(APPLICATION_CATEGORY, details.applicationCategory)}
-        />
-        <Row label="Name Of Applicant :" value={details.applicantName} />
-        <Row label="Father/Husband Name :" value={details.fatherName} />
-        <Row
-          label="Applicant Category :"
-          value={getOptionLabel(APPLICANT_CATEGORY, details.applicantCategory)}
-        />
-        <Row label="Select Gender :" value={getOptionLabel(GENDER, details.gender)} />
-        <Row label="Mobile No :" value={details.mobile} />
-        <Row label="Email Address :" value={details.email || '-'} />
-      </FormSection>
-
-      <FormSection
-        title="Residential Address"
-        icon="home-outline"
-        onEdit={onEditDetails}
-      >
-        <Row
-          label="Select State :"
-          value={getOptionLabel(STATES, details.residential.state)}
-        />
-        <Row
-          label="Select District :"
-          value={getOptionLabel(DISTRICTS, details.residential.district)}
-        />
-        <Row
-          label="Select Taluka :"
-          value={getOptionLabel(TALUKAS, details.residential.taluka)}
-        />
-        <Row
-          label="Select Village/City :"
-          value={getOptionLabel(VILLAGES, details.residential.village)}
-        />
-        <Row
-          label="Select Block :"
-          value={getOptionLabel(BLOCKS, details.residential.block)}
-        />
-        <Row label="Panchayat Name :" value={details.residential.panchayat} />
-        <Row
-          label="Police Station Name :"
-          value={details.residential.policeStation}
-        />
-        <Row
-          label="Post Office Name :"
-          value={details.residential.postOffice}
-        />
-        <Row label="Enter Pin Code :" value={details.residential.pinCode} />
-      </FormSection>
-
-      <FormSection
-        title="Pump Details"
-        icon="water-outline"
-        onEdit={onEditDetails}
-      >
-        <Row
-          label="Beneficiary Existing Pump *"
-          value={getOptionLabel(YES_NO, details.beneficiaryExistingPump)}
-        />
-      </FormSection>
-
-      <FormSection
-        title="Location Address"
-        icon="location-outline"
-        onEdit={onEditDetails}
-      >
-        <Row
-          label="Select State :"
-          value={getOptionLabel(STATES, details.location.state)}
-        />
-        <Row
-          label="Select District :"
-          value={getOptionLabel(DISTRICTS, details.location.district)}
-        />
-        <Row
-          label="Select Taluka :"
-          value={getOptionLabel(TALUKAS, details.location.taluka)}
-        />
-        <Row
-          label="Select Village/City :"
-          value={getOptionLabel(VILLAGES, details.location.village)}
-        />
-        <Row
-          label="Select Block :"
-          value={getOptionLabel(BLOCKS, details.location.block)}
-        />
-        <Row label="Panchayat Name :" value={details.location.panchayat} />
-        <Row
-          label="Police Station Name :"
-          value={details.location.policeStation}
-        />
-        <Row
-          label="Post Office Name :"
-          value={details.location.postOffice}
-        />
-        <Row label="Enter Pin Code :" value={details.location.pinCode} />
-        <Row
-          label="Area Of Land In Acres :"
-          value={details.location.areaInAcres}
-        />
-        <Row
-          label="Area Of Land In SqMtr :"
-          value={details.location.areaInSqMtr}
-        />
-        <Row
-          label="Laste Date Of Lagaan Rasid/Rent Receipt Of Land :"
-          value={details.location.lagaanRasidDate}
-        />
-      </FormSection>
-
-      <FormSection
-        title="Required Pump Details"
-        icon="construct-outline"
-        onEdit={onEditDetails}
-      >
-        <Row
-          label="Pump Capacity :"
-          value={getOptionLabel(PUMP_CAPACITY, details.pumpCapacity)}
-        />
-        <Row
-          label="Pump Type :"
-          value={getOptionLabel(PUMP_TYPE, details.pumpType)}
-        />
-        <Row
-          label="Pump Sub Type :"
-          value={getOptionLabel(PUMP_SUB_TYPE, details.pumpSubType)}
-        />
-        <Row
-          label="Controller Type :"
-          value={getOptionLabel(CONTROLLER_TYPE, details.controllerType)}
-        />
-        <Row label="Pump Capacity :" value={details.farmerContribution} />
-      </FormSection>
-
-      <FormSection
-        title="Irrigation Details"
-        icon="leaf-outline"
-        onEdit={onEditDetails}
-      >
-        <Row
-          label="Crop Type (Last Year) :"
-          value={getOptionLabel(CROP_TYPE, details.cropTypeLast)}
-        />
-        <Row
-          label="Crop Count (Last Year) :"
-          value={details.cropCountLast}
-        />
-        <Row
-          label="Crop Type (Last To Last Year) :"
-          value={getOptionLabel(CROP_TYPE, details.cropTypeLastToLast)}
-        />
-        <Row
-          label="Crop Count (Last To Last Year) :"
-          value={details.cropCountLastToLast}
-        />
-        <Row
-          label="Source Of Irrigation :"
-          value={getOptionLabel(SOURCE_OF_IRRIGATION, details.sourceOfIrrigation)}
-        />
-        <Row
-          label="Source Of Water :"
-          value={getOptionLabel(SOURCE_OF_WATER, details.sourceOfWater)}
-        />
-      </FormSection>
+      {detailSections.map(section => (
+        <FormSection
+          key={section.title}
+          title={section.title}
+          icon={section.icon}
+          onEdit={onEditDetails}
+        >
+          {section.rows.map(row => (
+            <Row key={row.label} label={row.label} value={row.value} />
+          ))}
+        </FormSection>
+      ))}
 
       <FormSection
         title="Uploaded Documents"
