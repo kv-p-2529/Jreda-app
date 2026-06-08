@@ -1,8 +1,7 @@
 import React, { useCallback, useMemo, lazy } from 'react';
-import { KeyboardAvoidingView, ScrollView } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAppSelector } from '../store/store';
-import Footer from '@/components/layout/Footer';
+import ScreenLayout from '@/components/layout/ScreenLayout';
 
 // Typed routes — the source of truth for navigation params. Add a new route
 // here first, then `navigate('NewRoute')` becomes type-checked everywhere.
@@ -56,30 +55,10 @@ export default function AppNavigator() {
   // Every screen sits inside a ScrollView with a sticky Footer at the bottom.
   // Wrapping at the navigator level (vs inside each screen) means we never
   // forget the footer on a new screen, and scroll position resets per route.
-  //
-  // Keyboard handling lives here too, so it applies to EVERY screen for free —
-  // no per-screen wrapping needed. We target Android 15+ (SDK 35+) where the OS
-  // ENFORCES edge-to-edge, so windowSoftInputMode="adjustResize" no longer
-  // resizes the window. KeyboardAvoidingView instead reads keyboard height from
-  // JS keyboard events (independent of adjustResize) and pads the bottom by that
-  // height — so behavior="padding" is needed on Android too, not just iOS. The
-  // padding shrinks the ScrollView, which then scrolls the focused input into
-  // view. keyboardShouldPersistTaps="handled" lets a user tap a button (e.g.
-  // Submit) while the keyboard is up; keyboardDismissMode="on-drag" hides it on scroll.
+  // ScreenLayout also auto-scrolls back to the top each time a screen is focused.
   const screenLayout = useCallback(
     ({ children }: { children: React.ReactNode }) => (
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <ScrollView
-          style={{ flex: 1, backgroundColor: 'transparent' }}
-          contentContainerStyle={{ flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-        >
-          {children}
-          <Footer />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <ScreenLayout>{children}</ScreenLayout>
     ),
     [],
   );

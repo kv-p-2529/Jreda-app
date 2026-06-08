@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
+import { useScrollToTop } from '@/components/layout/ScreenLayout';
 import Header from '@/components/Header';
 import VerifyAadharScreen from './VerifyAadharScreen';
 import VerifyOtpScreen from './VerifyOtpScreen';
@@ -49,6 +50,7 @@ const GST_PERCENT = 18;
 
 function RegisterIndex() {
   const navigation = useNavigation<any>();
+  const scrollToTop = useScrollToTop();
   const [step, setStep] = useState<Step>('aadhaar');
   const [aadhaarData, setAadhaarData] = useState<AadhaarValues | null>(null);
   const [detailsData, setDetailsData] = useState<PersonalDetailsValues | null>(
@@ -65,6 +67,13 @@ function RegisterIndex() {
   // Real payment id from a successful charge; falls back to the placeholder
   // while the backend (which would mint the application id) isn't live.
   const [paymentId, setPaymentId] = useState<string | null>(null);
+
+  // Stepping through the wizard swaps content within the SAME route, so the
+  // navigator's focus-based scroll reset never fires. Reset the scroll position
+  // ourselves on every step change so each step starts at the top.
+  useEffect(() => {
+    scrollToTop();
+  }, [step, scrollToTop]);
 
   const headerTitle = useMemo(() => {
     if (step === 'aadhaar') return 'Apply for PM-KUSUM Registration';
