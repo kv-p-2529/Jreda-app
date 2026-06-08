@@ -12,31 +12,12 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import pdfIcon from '@assets/pdf.png';
 
-// Three stacked cards: Public Information, Documents, What's New.
-// Each card's body is its own ScrollView (max-h-[420px]) so a long list
-// scrolls internally instead of stretching the section.
-//
-// The data arrays below are stand-ins until the documents API ships. Keep
-// the strings here for now — they're plain enough to translate via i18n
-// later if needed.
+import InfoListCard from './InfoListCard';
+import { documents, publicInformation, whatsNew } from './informationData';
 
-const publicInformation = [
-  'District Wise Authority Contact Details',
-  'Rate Card',
-  'Installer Details',
-  'Segregate Data Sanction wise',
-];
-
-const documents = [
-  'Extension of timeline for financial closure and completion of projects under PM KUSUM scheme - reg',
-  'Compliance of specification of the Module Mounting Structure (MMS) through SIAS and Vendors under PM KUSUM scheme - reg',
-  'Clarification with regard to the issuance of the Notice to',
-];
-
-const whatsNew = [
-  'OM dated 30.05.2025 regarding the Compliance of QCO,2017 in PM-KUSUM Scheme',
-  'Domestic Content Requirement (DCR) norms for Solar PV Cells-Reg.',
-];
+// Three stacked cards: Public Information, Documents, What's New. The first two
+// share the InfoListCard shape (header + scrollable checkmark list); What's New
+// has its own PDF-tile layout. Card content lives in informationData.ts.
 
 function InformationSection() {
   return (
@@ -52,42 +33,18 @@ function InformationSection() {
         </Text>
 
         {/* PUBLIC INFORMATION */}
-        <View className="bg-[#F8F8F8] rounded-2xl overflow-hidden mb-8">
-          {/* HEADER */}
-          <View className="bg-[#1382F5] px-6 py-5">
-            <Text className="text-white text-[20px] font-black">
-              Public Information
-            </Text>
-          </View>
-
-          {/* CONTENT */}
-          <View className="px-6 py-4 max-h-[420px]">
-            <ScrollView
-              nestedScrollEnabled
-              showsVerticalScrollIndicator={false}
-            >
-              {publicInformation.map((item, index) => (
-                <View
-                  key={index}
-                  className="flex-row items-start py-2 border-b border-[#E5E5E5]"
-                >
-                  <Ionicons name="checkmark-circle" size={26} color="#00B900" />
-
-                  <Text className="flex-1 ml-4 text-[#1B1B1B] text-sm leading-6 font-medium">
-                    {item}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
+        <InfoListCard
+          title="Public Information"
+          headerColor="#1382F5"
+          items={publicInformation}
+        />
 
         {/* DOCUMENTS */}
-        <View className="bg-[#F8F8F8] rounded-2xl overflow-hidden mb-8">
-          {/* HEADER */}
-          <View className="bg-[#00C300] px-6 py-5 flex-row items-center justify-between">
-            <Text className="text-white text-[20px] font-black">Documents</Text>
-
+        <InfoListCard
+          title="Documents"
+          headerColor="#00C300"
+          items={documents}
+          headerAction={
             <TouchableOpacity className="w-14 h-14 rounded-full border-[5px] border-white items-center justify-center">
               <Ionicons
                 style={{ transform: 'rotateZ(45deg)' }}
@@ -96,29 +53,8 @@ function InformationSection() {
                 color="#fff"
               />
             </TouchableOpacity>
-          </View>
-
-          {/* CONTENT */}
-          <View className="px-6 py-4 max-h-[420px]">
-            <ScrollView
-              nestedScrollEnabled
-              showsVerticalScrollIndicator={false}
-            >
-              {documents.map((item, index) => (
-                <View
-                  key={index}
-                  className="flex-row items-start py-2 border-b border-[#E5E5E5]"
-                >
-                  <Ionicons name="checkmark-circle" size={26} color="#00B900" />
-
-                  <Text className="flex-1 ml-4 text-[#1B1B1B] text-sm leading-6 font-medium">
-                    {item}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
+          }
+        />
 
         {/* WHAT'S NEW */}
         <View className="bg-[#F8F8F8] rounded-2xl overflow-hidden">

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Image,
   ImageSourcePropType,
-  Modal,
   Pressable,
   Text,
   TouchableOpacity,
@@ -14,73 +13,20 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import Video from 'react-native-video';
 import Swiper from 'react-native-swiper';
 
-import socialBanner from '@assets/social/social1.png';
-import videoThumbnail from '@assets/video/video1.png';
-import videoSource from '@assets/video/video1.mp4';
+import FullscreenMediaModal from './FullscreenMediaModal';
+import {
+  SOCIAL_SLIDE_HEIGHT,
+  VIDEO_SLIDE_HEIGHT,
+  socialMediaData,
+  videoGalleryData,
+} from './socialAndVideoData';
 
 // Two stacked carousels: Social Media posts and Video Gallery thumbnails.
-// Tapping a video thumbnail opens a fullscreen video Modal — the same
-// double-Pressable pattern as FormSelect closes-on-backdrop / preserves-on-
-// content. The video itself only mounts when activeVideo is set, so we're
-// not holding a video decoder open in the background the whole session.
-
-type SocialItem =
-  | {
-      id: number;
-      type: 'image';
-      image: ImageSourcePropType;
-    }
-  | {
-      id: number;
-      type: 'content';
-      title: string;
-      description: string;
-      image?: ImageSourcePropType;
-    };
-
-const socialMediaData: SocialItem[] = [
-  {
-    id: 1,
-    type: 'image',
-    image: socialBanner,
-  },
-  {
-    id: 2,
-    type: 'content',
-    title: 'MNRE launched new PM-KUSUM initiative for farmers.',
-    description:
-      'Government announced additional subsidy support for solar pumps across rural regions.',
-    image: socialBanner,
-  },
-  {
-    id: 3,
-    type: 'content',
-    title: 'New scheme rolled out for solar feeder solarisation.',
-    description:
-      'Eligible farmers can register through the official portal and avail benefits this quarter.',
-  },
-];
-
-const videoGalleryData = [
-  {
-    id: 1,
-    thumbnail: videoThumbnail,
-    video: videoSource,
-  },
-  {
-    id: 2,
-    thumbnail: videoThumbnail,
-    video: videoSource,
-  },
-  {
-    id: 3,
-    thumbnail: videoThumbnail,
-    video: videoSource,
-  },
-];
-
-const SOCIAL_SLIDE_HEIGHT = 320;
-const VIDEO_SLIDE_HEIGHT = 320;
+// Tapping a video thumbnail opens a fullscreen video modal; tapping a social
+// image opens it full-size. Both use the shared FullscreenMediaModal. The
+// video itself only mounts when activeVideo is set, so we're not holding a
+// video decoder open in the background the whole session. Carousel data lives
+// in socialAndVideoData.ts.
 
 function SocialAndVideoSection() {
   const [activeVideo, setActiveVideo] = useState<any>(null);
@@ -264,69 +210,33 @@ function SocialAndVideoSection() {
       </View>
 
       {/* VIDEO MODAL */}
-      <Modal
-        visible={!!activeVideo}
-        transparent
-        animationType="fade"
-        onRequestClose={closeVideo}
-        statusBarTranslucent
-      >
+      <FullscreenMediaModal visible={!!activeVideo} onClose={closeVideo}>
         <Pressable
-          onPress={closeVideo}
-          className="flex-1 bg-black/90 items-center justify-center"
+          onPress={e => e.stopPropagation()}
+          className="w-full aspect-video bg-black"
         >
-          <Pressable
-            onPress={e => e.stopPropagation()}
-            className="w-full aspect-video bg-black"
-          >
-            {activeVideo && (
-              <Video
-                source={activeVideo}
-                style={{ width: '100%', height: '100%' }}
-                resizeMode="contain"
-                controls
-                paused={false}
-              />
-            )}
-          </Pressable>
-
-          <TouchableOpacity
-            onPress={closeVideo}
-            className="absolute top-12 right-6 w-12 h-12 rounded-full bg-white/95 items-center justify-center"
-          >
-            <Ionicons name="close" size={26} color="#1B1B1B" />
-          </TouchableOpacity>
-        </Pressable>
-      </Modal>
-
-      {/* IMAGE MODAL — full-size view of a tapped social image */}
-      <Modal
-        visible={!!activeImage}
-        transparent
-        animationType="fade"
-        onRequestClose={closeImage}
-        statusBarTranslucent
-      >
-        <Pressable
-          onPress={closeImage}
-          className="flex-1 bg-black/90 items-center justify-center"
-        >
-          {activeImage && (
-            <Image
-              source={activeImage}
-              style={{ width: '100%', height: '80%' }}
+          {activeVideo && (
+            <Video
+              source={activeVideo}
+              style={{ width: '100%', height: '100%' }}
               resizeMode="contain"
+              controls
+              paused={false}
             />
           )}
-
-          <TouchableOpacity
-            onPress={closeImage}
-            className="absolute top-12 right-6 w-12 h-12 rounded-full bg-white/95 items-center justify-center"
-          >
-            <Ionicons name="close" size={26} color="#1B1B1B" />
-          </TouchableOpacity>
         </Pressable>
-      </Modal>
+      </FullscreenMediaModal>
+
+      {/* IMAGE MODAL — full-size view of a tapped social image */}
+      <FullscreenMediaModal visible={!!activeImage} onClose={closeImage}>
+        {activeImage && (
+          <Image
+            source={activeImage}
+            style={{ width: '100%', height: '80%' }}
+            resizeMode="contain"
+          />
+        )}
+      </FullscreenMediaModal>
     </View>
   );
 }
