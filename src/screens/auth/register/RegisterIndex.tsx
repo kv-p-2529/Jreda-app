@@ -14,12 +14,25 @@ import RegistrationSuccessModal from './RegistrationSuccessModal';
 import PaymentFailedModal from './PaymentFailedModal';
 
 import { payRegistrationFee } from '@/services/payment';
+import type { ReceiptData } from '@/pdfs/PaymentReceipt';
 
 import {
   AadhaarValues,
   DocumentsValues,
   PersonalDetailsValues,
 } from './registrationSchemas';
+import {
+  APPLICANT_CATEGORY,
+  APPLICATION_CATEGORY,
+  CONTROLLER_TYPE,
+  DISTRICTS,
+  GENDER,
+  getOptionLabel,
+  PUMP_CAPACITY,
+  PUMP_CATEGORY,
+  PUMP_SUB_TYPE,
+  PUMP_TYPE,
+} from './registrationOptions';
 
 // Orchestrator for the multi-step registration wizard. Each step is its own
 // screen component; this file owns the state machine that decides what to
@@ -104,6 +117,49 @@ function RegisterIndex() {
     });
     return `${date}, ${time}`;
   }, []);
+
+  // Flatten the wizard's accumulated state into the flat, all-strings shape the
+  // receipt renders. Option values are mapped back to their human labels so the
+  // PDF reads "OBC" / "DC" rather than the stored "obc" / "dc" codes. Falls back
+  // to '-' for anything not captured (e.g. the user skipped an optional field).
+  const receiptData: ReceiptData = useMemo(
+    () => ({
+      paymentReferenceNo: paymentId ?? PAYMENT_ID,
+      paymentDate: dateString,
+      bankReferenceNo: '-',
+      amount: amountString,
+      orderNumber: REFERENCE_NO,
+      paymentMode: 'UPI',
+      applicationNumber: APPLICATION_ID,
+      mobileNumber: detailsData?.mobile ?? '-',
+      farmerName: detailsData?.applicantName ?? '-',
+      fatherHusbandName: detailsData?.fatherName ?? '-',
+      applicationCategory: getOptionLabel(
+        APPLICATION_CATEGORY,
+        detailsData?.applicationCategory,
+      ),
+      applicantType: getOptionLabel(
+        APPLICANT_CATEGORY,
+        detailsData?.applicantCategory,
+      ),
+      aadharLast4: aadhaarData?.aadhaar?.slice(-4) ?? '-',
+      gender: getOptionLabel(GENDER, detailsData?.gender),
+      locationDistrict: getOptionLabel(
+        DISTRICTS,
+        detailsData?.location?.district,
+      ),
+      emailId: detailsData?.email || '-',
+      pumpCapacity: getOptionLabel(PUMP_CAPACITY, detailsData?.pumpCapacity),
+      pumpCategory: getOptionLabel(PUMP_CATEGORY, detailsData?.pumpCategory),
+      pumpSubType: getOptionLabel(PUMP_SUB_TYPE, detailsData?.pumpSubType),
+      pumpType: getOptionLabel(PUMP_TYPE, detailsData?.pumpType),
+      controllerType: getOptionLabel(
+        CONTROLLER_TYPE,
+        detailsData?.controllerType,
+      ),
+    }),
+    [aadhaarData, detailsData, paymentId, amountString, dateString],
+  );
 
   // Kick off the Razorpay checkout for the registration fee. `payRegistrationFee`
   // never throws — it resolves to success/cancelled/failed — so we just switch
@@ -221,6 +277,7 @@ function RegisterIndex() {
         }}
         onDownloadReceipt={() => {
           setSuccessOpen(false);
+          navigation.navigate('Receipt', { data: receiptData });
         }}
         onShowFailureDemo={() => {
           setSuccessOpen(false);

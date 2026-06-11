@@ -1,16 +1,17 @@
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-// import Ionicons from '@react-native-vector-icons/ionicons';
+import { useNavigation } from '@react-navigation/native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 import DashHOC from '@/components/DashHOC';
 import Spacer from '@/components/ui/Spacer';
 import SearchByCard from '@/screens/dashboard/components/SearchByCard';
-import StatCard from './components/StatCard';
+import StatCard from '@/screens/jcr/components/StatCard';
 
-// The JCR Document tracking tile opens the complaints register ("Complaints").
-// DashHOC shell + Search row, a horizontally-scrolling Open/Close/Total summary,
-// then the open-complaints list (currently an empty state). Counts are
-// hard-coded; wire to a useComplaints() hook keyed on the searched applicant.
+// The Grievance tracking tile opens the complaints register. DashHOC shell +
+// Search row, a horizontally-scrolling Open/Close/Total summary, then the
+// open-complaints list (currently an empty state). Counts are hard-coded; wire
+// to a useComplaints() hook keyed on the searched applicant.
 
 const STATS = [
   {
@@ -39,9 +40,11 @@ const STATS = [
   },
 ];
 
-function JCR() {
+function Grievance() {
+  const navigation = useNavigation<any>();
+
   return (
-    <DashHOC title="Complaints">
+    <DashHOC title="Grievance">
       <SearchByCard
         label="Search By:"
         options={[
@@ -76,11 +79,12 @@ function JCR() {
         ))}
       </ScrollView>
 
-      {/* <View className="mx-4 mt-6">
+      <View className="mx-4 mt-6">
         <Text className="text-[18px] font-spaceBold text-[#1B1B1B] mb-3">
           Open Complaints
         </Text>
 
+        {/* Empty state */}
         <View className="items-center py-6">
           <View
             style={{
@@ -103,7 +107,7 @@ function JCR() {
 
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => {}}
+            onPress={() => navigation.navigate('AddComplaint')}
             className="flex-row items-center justify-center mt-5"
             style={{
               borderWidth: 1.5,
@@ -122,10 +126,10 @@ function JCR() {
             </Text>
           </TouchableOpacity>
         </View>
-      </View> */}
+      </View>
       <Spacer size="lg" />
     </DashHOC>
   );
 }
 
-export default JCR;
+export default Grievance;

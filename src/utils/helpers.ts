@@ -1,4 +1,6 @@
-import { Alert, Dimensions, Platform, ToastAndroid } from 'react-native';
+import { Dimensions, Platform, ToastAndroid } from 'react-native';
+
+import { showOverlayToast } from '@/components/ui/Toast';
 
 // Captured once at module load. RN reports the wrong dimensions if you read
 // these during render on some Android versions when the keyboard is open,
@@ -7,12 +9,13 @@ import { Alert, Dimensions, Platform, ToastAndroid } from 'react-native';
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-// Lightweight toast: native Toast on Android, Alert fallback elsewhere.
+// Lightweight cross-platform toast: native Toast on Android, animated overlay
+// (<ToastHost /> at the app root) on iOS and everywhere else.
 function showToast(message: string) {
   if (Platform.OS === 'android') {
     ToastAndroid.show(message, ToastAndroid.SHORT);
   } else {
-    Alert.alert(message);
+    showOverlayToast(message);
   }
 }
 

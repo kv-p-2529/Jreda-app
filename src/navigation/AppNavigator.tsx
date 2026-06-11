@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, lazy } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAppSelector } from '../store/store';
 import ScreenLayout from '@/components/layout/ScreenLayout';
+import { ReceiptData } from '@/pdfs/PaymentReceipt';
 
 // Typed routes — the source of truth for navigation params. Add a new route
 // here first, then `navigate('NewRoute')` becomes type-checked everywhere.
@@ -18,6 +19,9 @@ export type RootStackParamList = {
   JCR: undefined;
   Register: undefined;
   Login: undefined;
+  Grievance: undefined;
+  AddComplaint: undefined;
+  Receipt: { data: ReceiptData };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -35,11 +39,13 @@ const Insurance = React.lazy(() => import('@/screens/insurance/Insurance'));
 const Inspection = React.lazy(() => import('@/screens/inspection/Inspection'));
 const Survey = React.lazy(() => import('@/screens/survey/Survey'));
 const JCR = React.lazy(() => import('@/screens/jcr/JCR'));
-// const HomeScreen = React.lazy(() => import('@screens/home/HomeScreen'));
 const Register = React.lazy(
   () => import('@screens/auth/register/RegisterIndex'),
 );
 const LoginScreen = lazy(() => import('@/screens/auth/LoginScreen'));
+const Grievance = lazy(() => import('@screens/grievance/Grievance'));
+const AddComplaint = lazy(() => import('@screens/grievance/AddComplaint'));
+const ReceiptScreen = lazy(() => import('@screens/receipt/ReceiptScreen'));
 
 export default function AppNavigator() {
   const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
@@ -63,6 +69,35 @@ export default function AppNavigator() {
     [],
   );
 
+  const protectedRoutes: {
+    name: keyof RootStackParamList;
+    component: React.ComponentType<any>;
+  }[] = [
+    { name: 'Dashboard', component: Dashboard },
+    { name: 'LiveStatus', component: LiveStatus },
+    { name: 'Performance', component: Performance },
+    { name: 'Analysis', component: Analysis },
+    { name: 'Assets', component: AssetDetails },
+    { name: 'Insurance', component: Insurance },
+    { name: 'Inspection', component: Inspection },
+    { name: 'Survey', component: Survey },
+    { name: 'JCR', component: JCR },
+    { name: 'Grievance', component: Grievance },
+    { name: 'AddComplaint', component: AddComplaint },
+    { name: 'Receipt', component: ReceiptScreen },
+  ];
+
+  const publicRoutes: {
+    name: keyof RootStackParamList;
+    component: React.ComponentType<any>;
+  }[] = [
+    { name: 'Login', component: LoginScreen },
+    { name: 'Register', component: Register },
+    // Reachable from the registration "Download Receipt" flow, which runs while
+    // the user is still unauthenticated — so Receipt must exist in this stack too.
+    { name: 'Receipt', component: ReceiptScreen },
+  ];
+
   // Two distinct stacks based on auth state. We don't render the logged-out
   // screens at all when authenticated — that's safer than relying on screen
   // guards and lets `navigate('Home')` from a logged-in context fail loudly
@@ -75,20 +110,23 @@ export default function AppNavigator() {
     >
       {isAuthenticated ? (
         <>
-          <Stack.Screen name="Dashboard" component={Dashboard} />
-          <Stack.Screen name="LiveStatus" component={LiveStatus} />
-          <Stack.Screen name="Performance" component={Performance} />
-          <Stack.Screen name="Analysis" component={Analysis} />
-          <Stack.Screen name="Assets" component={AssetDetails} />
-          <Stack.Screen name="Insurance" component={Insurance} />
-          <Stack.Screen name="Inspection" component={Inspection} />
-          <Stack.Screen name="Survey" component={Survey} />
-          <Stack.Screen name="JCR" component={JCR} />
+          {protectedRoutes?.map(route => (
+            <Stack.Screen
+              key={route?.name}
+              name={route?.name}
+              component={route?.component}
+            />
+          ))}
         </>
       ) : (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={Register} />
+          {publicRoutes?.map(route => (
+            <Stack.Screen
+              key={route?.name}
+              name={route?.name}
+              component={route?.component}
+            />
+          ))}
         </>
       )}
     </Stack.Navigator>

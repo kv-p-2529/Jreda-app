@@ -63,14 +63,14 @@ const TRACKING_TILES: ActionTile[] = [
     iconBg: TILE_COLORS.purple.iconBg,
     cardBg: TILE_COLORS.purple.cardBg,
   },
-  {
-    key: 'insurance',
-    label: 'Insurance',
-    icon: 'document-text-outline',
-    iconColor: TILE_COLORS.green.icon,
-    iconBg: TILE_COLORS.green.iconBg,
-    cardBg: TILE_COLORS.green.cardBg,
-  },
+  // {
+  //   key: 'insurance',
+  //   label: 'Insurance',
+  //   icon: 'document-text-outline',
+  //   iconColor: TILE_COLORS.green.icon,
+  //   iconBg: TILE_COLORS.green.iconBg,
+  //   cardBg: TILE_COLORS.green.cardBg,
+  // },
   {
     key: 'jcr-document',
     label: 'JCR Document',
@@ -86,6 +86,14 @@ const TRACKING_TILES: ActionTile[] = [
     iconColor: TILE_COLORS.orange.icon,
     iconBg: TILE_COLORS.orange.iconBg,
     cardBg: TILE_COLORS.orange.cardBg,
+  },
+  {
+    key: 'grievance',
+    label: 'Grievance',
+    icon: 'megaphone-outline',
+    iconColor: TILE_COLORS.blue.icon,
+    iconBg: TILE_COLORS.blue.iconBg,
+    cardBg: TILE_COLORS.blue.cardBg,
   },
 ];
 
@@ -120,6 +128,8 @@ function Dashboard() {
         return { ...tile, onPress: () => navigation.navigate('Survey') };
       case 'jcr-document':
         return { ...tile, onPress: () => navigation.navigate('JCR') };
+      case 'grievance':
+        return { ...tile, onPress: () => navigation.navigate('Grievance') };
       default:
         return tile;
     }

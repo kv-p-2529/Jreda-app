@@ -1,14 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Platform,
-  Text,
-  TextInput,
-  ToastAndroid,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useForm, useController, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +12,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import Button from '@/components/ui/Button';
 import { loginSuccess } from '@/store/slices/authSlice';
 import { shadowSm } from '@/utils/shadows';
+import { showToast } from '@/utils/helpers';
 
 // Login is mobile + OTP. Rendered inside AppModal from AppLayout — that's why
 // it doesn't have a Header of its own and uses closeModal to dismiss.
@@ -53,15 +45,6 @@ const RESEND_SECONDS = 120;
 // Seconds -> "M:SS" for the resend countdown.
 const formatTime = (s: number) =>
   `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-
-// Lightweight toast: native Toast on Android, Alert fallback elsewhere.
-function showToast(message: string) {
-  if (Platform.OS === 'android') {
-    ToastAndroid.show(message, ToastAndroid.SHORT);
-  } else {
-    Alert.alert(message);
-  }
-}
 
 // Small Indian tricolour flag for the +91 country-code chip — drawn with views
 // so it renders identically on every platform (Android won't show flag emoji).

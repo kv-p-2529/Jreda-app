@@ -25,6 +25,7 @@ import { store, persistor } from './src/store/store';
 import { queryClient } from './src/services/queryClient';
 import AppNavigator from './src/navigation/AppNavigator';
 import AppLayout from './src/components/layout/AppLayout';
+import ToastHost from './src/components/ui/Toast';
 
 // Brief spinner while redux-persist rehydrates the stored auth token from
 // AsyncStorage. Memoized because PersistGate may render it more than once.
@@ -74,6 +75,10 @@ export default function App() {
                 <AppLayout>
                   <AppNavigator />
                 </AppLayout>
+                {/* Overlays the whole app; absolutely positioned + non-
+                    interactive, so it sits above everything without affecting
+                    layout. Drives the iOS/non-Android toast from showToast. */}
+                <ToastHost />
               </SafeAreaView>
             </NavigationContainer>
           </SafeAreaProvider>
