@@ -11,8 +11,7 @@ import {
 import { DRAWER_WIDTH, NAV_ITEMS } from './layoutConstants';
 import logo2 from '@assets/logo-2.png';
 import Button from '@/components/ui/Button';
-import { useAppDispatch, useAppSelector } from '@/store/store';
-import { logout } from '@/store/slices/authSlice';
+import { useAuth } from '@/services/baseService';
 
 interface DrawerMenuProps {
   translateX: Animated.Value;
@@ -25,10 +24,7 @@ interface DrawerMenuProps {
 // its backdrop in sync.
 const DrawerMenu = React.memo(
   ({ translateX, onClose, onApplyOnline }: DrawerMenuProps) => {
-    const dispatch = useAppDispatch();
-    const isAuthenticated = useAppSelector(
-      state => state.auth.isAuthenticated,
-    );
+    const { isAuthenticated, logout } = useAuth();
 
     // Memoized so we don't allocate a new style array on every parent render —
     // matters because the parent updates its Animated.Value frequently.
@@ -40,7 +36,7 @@ const DrawerMenu = React.memo(
     // Log out and close the drawer — there's no good "logged out but drawer
     // still open" state to land on, so collapse both at once.
     const handleLogout = () => {
-      dispatch(logout());
+      logout();
       onClose();
     };
 

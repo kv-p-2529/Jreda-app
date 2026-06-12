@@ -135,6 +135,81 @@ export const PUMP_FUEL: SelectOption[] = [
   { label: 'Generator', value: 'generator' },
 ];
 
+// ─── Master-list (API) options ────────────────────────────────────────────
+// The /app/master/filter-options endpoint returns the canonical dropdown data.
+// `buildMasterOptions` reshapes that raw response into the SelectOption[] shape
+// the form components expect, so screens can swap static → API options without
+// any other changes. Fields the master list doesn't cover (state, the
+// taluka/village/block cascade) stay on the static lists above.
+
+export type MasterOptions = {
+  applicationCategory: SelectOption[];
+  applicantCategory: SelectOption[];
+  gender: SelectOption[];
+  pumpCapacity: SelectOption[];
+  pumpType: SelectOption[];
+  pumpSubType: SelectOption[];
+  pumpCategory: SelectOption[];
+  controllerType: SelectOption[];
+  pumpFuel: SelectOption[];
+  sourceOfIrrigation: SelectOption[];
+  sourceOfWater: SelectOption[];
+  cropType: SelectOption[];
+  district: SelectOption[];
+};
+
+// Map a plain string/number array to options, using the raw item as both the
+// stored value (what the backend expects back) and the displayed label.
+const toOptions = (arr?: (string | number)[]): SelectOption[] =>
+  (arr ?? []).map(item => ({ label: String(item), value: String(item) }));
+
+export function buildMasterOptions(raw: any): MasterOptions {
+  return {
+    applicationCategory: toOptions(raw?.application_categories),
+    applicantCategory: toOptions(raw?.castes),
+    gender: toOptions(raw?.genders),
+    pumpCapacity: (raw?.pump_capacities ?? []).map((n: string | number) => ({
+      label: `${n} HP`,
+      value: String(n),
+    })),
+    pumpType: toOptions(raw?.pump_types),
+    pumpSubType: toOptions(raw?.pump_sub_types),
+    pumpCategory: toOptions(raw?.pump_categories),
+    controllerType: toOptions(raw?.controller_types),
+    pumpFuel: toOptions(raw?.pump_fuels),
+    // irrigation_modes already arrives as { value, label }.
+    sourceOfIrrigation: (raw?.irrigation_modes ?? []).map((m: any) => ({
+      label: m?.label ?? String(m?.value),
+      value: String(m?.value),
+    })),
+    sourceOfWater: toOptions(raw?.water_sources),
+    cropType: toOptions(raw?.crop_types),
+    // districts arrive as { district_code, district_name }.
+    district: (raw?.districts ?? []).map((d: any) => ({
+      label: d?.district_name,
+      value: String(d?.district_code),
+    })),
+  };
+}
+
+// Map a location-cascade response (talukas / towns / blocks) to options. Those
+// endpoints all return arrays of `{ <thing>_code, <thing>_name, ... }`, so we
+// pass the relevant key pair, e.g.
+//   mapCodeNameOptions(data, 'taluka_code', 'taluka_name')
+//   mapCodeNameOptions(data, 'block_code',  'block_name')
+//   mapCodeNameOptions(data, 'town_code',   'town_name')
+export function mapCodeNameOptions(
+  arr: any,
+  codeKey: string,
+  nameKey: string,
+): SelectOption[] {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((item: any) => ({
+    label: String(item?.[nameKey] ?? ''),
+    value: String(item?.[codeKey] ?? ''),
+  }));
+}
+
 // ─── Display helpers ──────────────────────────────────────────────────────
 
 // Map a stored option `value` back to its human-readable `label` for read-only

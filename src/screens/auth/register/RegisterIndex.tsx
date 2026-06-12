@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useScrollToTop } from '@/components/layout/ScreenLayout';
@@ -32,7 +32,14 @@ import {
   PUMP_CATEGORY,
   PUMP_SUB_TYPE,
   PUMP_TYPE,
+  buildMasterOptions,
 } from './registrationOptions';
+import authApi from '@/api/authApi';
+import throwError from '@/api/throwError';
+import axios from 'axios';
+import { showToast } from '@/utils/helpers';
+import apiClient from '@/api/apiClient';
+import { getFullUrl } from '@/services/baseService';
 
 // Orchestrator for the multi-step registration wizard. Each step is its own
 // screen component; this file owns the state machine that decides what to
@@ -62,16 +69,30 @@ const CONVENIENCE_FEE = 20;
 const GST_PERCENT = 18;
 
 function RegisterIndex() {
+  const {
+    masterListApi,
+    aadhaarGetOtpApi,
+    aadhaarVerifyOtpApi,
+    registerStartApi,
+    registerResumeApi,
+    registerSectionUpdateApi,
+    registerPreviewApi,
+  } = authApi();
+
   const navigation = useNavigation<any>();
   const scrollToTop = useScrollToTop();
   const [step, setStep] = useState<Step>('aadhaar');
-  const [aadhaarData, setAadhaarData] = useState<AadhaarValues | null>(null);
+  const [loader, setLoader] = useState('');
+  const [aadhaarData, setAadhaarData] = useState<any>(null);
   const [detailsData, setDetailsData] = useState<PersonalDetailsValues | null>(
     null,
   );
   const [documentsData, setDocumentsData] = useState<DocumentsValues | null>(
     null,
   );
+
+  const [masterList, setMasterList] = useState(null);
+
   const [successOpen, setSuccessOpen] = useState(false);
   const [failedOpen, setFailedOpen] = useState(false);
   // Razorpay checkout is in flight — drives the Pay button spinner so the user
@@ -80,6 +101,9 @@ function RegisterIndex() {
   // Real payment id from a successful charge; falls back to the placeholder
   // while the backend (which would mint the application id) isn't live.
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  // Registration session token from POST /registration/start. Threaded into the
+  // resume / section-update / preview calls that all key off it.
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
 
   // Stepping through the wizard swaps content within the SAME route, so the
   // navigator's focus-based scroll reset never fires. Reset the scroll position
@@ -87,6 +111,49 @@ function RegisterIndex() {
   useEffect(() => {
     scrollToTop();
   }, [step, scrollToTop]);
+
+  const initiateRegistrationFun = () => {
+    setLoader('initiate');
+    axios
+      .post<any>(registerStartApi)
+      .then(res => {
+        console.log('Registration initiated', res.data?.data);
+        setSessionToken(res?.data?.data?.session_token);
+      })
+      .catch(err => {
+        throwError(err);
+        navigation.goBack();
+      })
+      .finally(() => setLoader(''));
+  };
+
+  const fetchMasterList = () => {
+    setLoader('master');
+    axios
+      .get<any>(getFullUrl(masterListApi))
+      .then(res => {
+        console.log('Master list fetched', res.data?.data);
+        setMasterList(res?.data?.data);
+      })
+      .catch(err => {
+        throwError(err);
+        navigation.goBack();
+      })
+      .finally(() => setLoader(''));
+  };
+
+  // Fire once on mount and stash the returned session token.
+  useEffect(() => {
+    initiateRegistrationFun();
+    fetchMasterList();
+  }, []);
+
+  // Reshape the master-list API response into the SelectOption[] shape the
+  // PersonalDetails dropdowns expect. Recomputed only when the response lands.
+  const masterOptions = useMemo(
+    () => buildMasterOptions(masterList),
+    [masterList],
+  );
 
   const headerTitle = useMemo(() => {
     if (step === 'aadhaar') return 'Apply for PM-KUSUM Registration';
@@ -142,7 +209,7 @@ function RegisterIndex() {
         APPLICANT_CATEGORY,
         detailsData?.applicantCategory,
       ),
-      aadharLast4: aadhaarData?.aadhaar?.slice(-4) ?? '-',
+      aadharLast4: aadhaarData?.aadhaar_number?.slice(-4) ?? '-',
       gender: getOptionLabel(GENDER, detailsData?.gender),
       locationDistrict: getOptionLabel(
         DISTRICTS,
@@ -192,6 +259,75 @@ function RegisterIndex() {
     }
   };
 
+  if (loader === 'initiate') {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Header title={headerTitle} />
+        <View style={{ marginVertical: 20 }}>
+          <ActivityIndicator size="large" color="#1382F5" />
+          <Text>Please Wait</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const steps: Record<number, string | any> = {
+    1: 'aadhaar',
+    2: 'otp',
+    3: 'details',
+    4: 'documents',
+    5: 'preview',
+    6: 'payment',
+  };
+
+  const firstStepFun = (values: any) => {
+    setAadhaarData(values);
+
+    // scenario: 'existing' 'otp_sent';
+
+    if (values?.status === 'existing') {
+      setStep(steps[values?.data?.current_section]);
+      setSessionToken(values?.data?.session_token);
+      return;
+    }
+    setStep('otp');
+  };
+
+  const verifyAadhaarFun = () => {
+    setLoader('verify');
+
+    const body = {
+      aadhaar_number: aadhaarData?.aadhaar_number,
+    };
+
+    apiClient
+      .post(aadhaarGetOtpApi, body)
+      .then(res => {
+        const data = res?.data?.data;
+        showToast('OTP sent to your Aadhaar-linked mobile number');
+        firstStepFun({ ...data, ...body });
+      })
+      .catch(err => throwError(err))
+      .finally(() => setLoader(''));
+  };
+
+  const updateFormStatus = (section: string | number, retriesLeft = 2) => {
+    axios
+      .put(registerSectionUpdateApi(sessionToken ?? '', section))
+      .then(res => {
+        console.log('Form status updated', res.data);
+      })
+      .catch(err => {
+        // Retry up to twice (3 attempts total), then give up and surface the
+        // error instead of looping forever.
+        if (retriesLeft > 0) {
+          updateFormStatus(section, retriesLeft - 1);
+        } else {
+          throwError(err);
+        }
+      });
+  };
+
   const renderStep = () => {
     switch (step) {
       case 'aadhaar':
@@ -199,26 +335,32 @@ function RegisterIndex() {
           <VerifyAadharScreen
             defaultValues={aadhaarData ?? undefined}
             onNext={values => {
-              setAadhaarData(values);
-              setStep('otp');
+              firstStepFun(values);
             }}
+            api={aadhaarGetOtpApi}
+            token={sessionToken}
           />
         );
       case 'otp':
         return (
           <VerifyOtpScreen
-            aadhaar={aadhaarData?.aadhaar ?? ''}
-            onNext={() => setStep('details')}
+            aadhaar={aadhaarData}
+            resendOtp={() => verifyAadhaarFun()}
+            onNext={() => (setStep('details'), updateFormStatus(1))}
             onChangeAadhaar={() => setStep('aadhaar')}
+            api={aadhaarVerifyOtpApi}
+            token={sessionToken}
           />
         );
       case 'details':
         return (
           <PersonalDetailsScreen
             defaultValues={detailsData ?? undefined}
+            options={masterOptions}
             onNext={values => {
               setDetailsData(values);
               setStep('documents');
+              updateFormStatus(2);
             }}
           />
         );
@@ -229,6 +371,7 @@ function RegisterIndex() {
             onNext={values => {
               setDocumentsData(values);
               setStep('preview');
+              updateFormStatus(3);
             }}
             onBack={() => setStep('details')}
           />
@@ -241,7 +384,7 @@ function RegisterIndex() {
             onEditDetails={() => setStep('details')}
             onEditDocuments={() => setStep('documents')}
             onBack={() => setStep('documents')}
-            onNext={() => setStep('payment')}
+            onNext={() => (setStep('payment'), updateFormStatus(4))}
           />
         ) : null;
       case 'payment':

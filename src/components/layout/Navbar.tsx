@@ -10,7 +10,7 @@ import {
 import jredaLogo from '@assets/logo.png';
 import hamburgerIcon from '@assets/hamburger.png';
 import { useNavigation } from '@react-navigation/native';
-import { useAppSelector } from '@/store/store';
+import { useAuth } from '@/services/baseService';
 
 interface NavbarProps {
   isDrawerOpen: boolean;
@@ -21,7 +21,7 @@ interface NavbarProps {
 // re-renders on every navigation since the parent's props churn.
 const Navbar = React.memo(({ isDrawerOpen, onHamburgerPress }: NavbarProps) => {
   const { navigate } = useNavigation<any>();
-  const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+  const { isAuthenticated } = useAuth();
 
   // Logo tap routes by auth state: logged-in users go to their Dashboard,
   // visitors land on the marketing Home.

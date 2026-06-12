@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { store } from '../store/store';
+import { BASE_URL } from '@env';
+import { getAuthToken } from '@/services/baseService';
 
 // Single shared HTTP client. Every API call should go through this instance so
 // the auth header is attached automatically and errors are funnelled through
@@ -7,21 +8,17 @@ import { store } from '../store/store';
 // through here instead.
 
 const apiClient = axios.create({
-  baseURL: 'https://api.pmkusum.jreda.gov.in/api/v1',
+  baseURL: `${BASE_URL}`,
   timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
 });
 
-// Request interceptor — read the latest auth token from redux on every call.
-// We pull from the store directly (vs caching the token in a module variable)
-// so a logout/login during an in-flight request still uses the right token.
+// Request interceptor — read the latest auth token on every call. baseService
+// keeps the token in memory (updated on login/logout), so a logout/login during
+// an in-flight request still attaches the right token.
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     try {
-      const token = store.getState().auth.token;
+      const token = getAuthToken();
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }

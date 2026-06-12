@@ -9,11 +9,13 @@
 // For now it's a constant; swap to a server-provided value when that endpoint
 // exists.
 
+import { RAZORPAY_KEY_ID as RAZORPAY_KEY_ID_ENV } from '@env';
+
 /**
  * Public Razorpay Key ID. Replace with your real test key, then the live key at
  * go-live. A `rzp_test_…` key opens the mock checkout where no real money moves.
  */
-export const RAZORPAY_KEY_ID = 'rzp_test_nUc7oYd6aIqhzy';
+export const RAZORPAY_KEY_ID = RAZORPAY_KEY_ID_ENV;
 
 /**
  * Whether to drive the production flow:

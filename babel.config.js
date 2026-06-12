@@ -3,6 +3,15 @@ module.exports = {
   plugins: [
     '@babel/plugin-transform-export-namespace-from',
     [
+      'module:react-native-dotenv',
+      {
+        moduleName: '@env',
+        path: '.env',
+        safe: false,
+        allowUndefined: false,
+      },
+    ],
+    [
       'module-resolver',
       {
         root: ['./src'],
@@ -20,5 +29,9 @@ module.exports = {
         },
       },
     ],
+    // Reanimated 4 worklets plugin — REQUIRED for react-native-reanimated (and
+    // anything built on it, e.g. react-native-reanimated-skeleton). MUST be the
+    // last plugin in the list.
+    'react-native-worklets/plugin',
   ],
 };

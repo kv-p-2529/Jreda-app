@@ -1,8 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import axios from 'axios';
+
+import authApi from '@/api/authApi';
+import throwError from '@/api/throwError';
+import { getFullUrl } from '@/services/baseService';
 
 import Button from '@/components/ui/Button';
 import StepIndicator from '@/components/ui/StepIndicator';
@@ -46,13 +51,19 @@ import {
   TALUKAS,
   VILLAGES,
   YES_NO,
+  mapCodeNameOptions,
+  type MasterOptions,
 } from './registrationOptions';
+import type { SelectOption } from '@/components/ui/form/FormSelect';
 
 // State is fixed to Jharkhand for this portal — the value stored in the form.
 const FIXED_STATE = 'jharkhand';
 
 type Props = {
   defaultValues?: Partial<PersonalDetailsValues>;
+  // Dropdown options from the master-list API. Optional so the screen still
+  // renders (on the static fallbacks) before the response lands.
+  options?: MasterOptions;
   onNext: (values: PersonalDetailsValues) => void;
 };
 
@@ -106,11 +117,16 @@ const initialValues: PersonalDetailsValues = {
   sourceOfWater: '',
 };
 
-function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
+function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
   const { control, handleSubmit, setValue } = useForm<PersonalDetailsValues>({
     // resolver: zodResolver(personalDetailsSchema),
     defaultValues: { ...initialValues, ...defaultValues },
   });
+
+  // Prefer the API-provided options for a field; fall back to the static list
+  // when the master list hasn't loaded yet (or doesn't cover that field).
+  const opt = (key: keyof MasterOptions, fallback: SelectOption[]) =>
+    options?.[key]?.length ? options[key] : fallback;
 
   // Fields that drive auto-calculated values. useWatch re-renders only this
   // component when they change (not the whole form tree).
@@ -118,6 +134,105 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
   const selectedPumpCapacity = useWatch({ control, name: 'pumpCapacity' });
   const hasExistingPump =
     useWatch({ control, name: 'beneficiaryExistingPump' }) === 'yes';
+
+  // ─── Location cascade (district → talukas + blocks, taluka → towns/villages)
+  // The talukas/towns/blocks endpoints are keyed off the parent selection, so
+  // we fetch them on change for BOTH address sections (residential + location).
+  // Response shapes aren't confirmed yet — each fetch console.logs the raw body
+  // so we can see the real keys, and toLocationOptions maps them defensively.
+  const { talukasListApi, townsListApi, blocksListApi } = authApi();
+
+  const [resTalukas, setResTalukas] = useState<SelectOption[]>([]);
+  const [resVillages, setResVillages] = useState<SelectOption[]>([]);
+  const [resBlocks, setResBlocks] = useState<SelectOption[]>([]);
+  const [locTalukas, setLocTalukas] = useState<SelectOption[]>([]);
+  const [locVillages, setLocVillages] = useState<SelectOption[]>([]);
+  const [locBlocks, setLocBlocks] = useState<SelectOption[]>([]);
+
+  // Watch the parent selections that drive the cascade.
+  const resDistrict = useWatch({ control, name: 'residential.district' });
+  const resTaluka = useWatch({ control, name: 'residential.taluka' });
+  const locDistrict = useWatch({ control, name: 'location.district' });
+  const locTaluka = useWatch({ control, name: 'location.taluka' });
+
+  // GET talukas for a district_code.
+  const fetchTalukas = (districtCode: string) =>
+    axios
+      .get<any>(getFullUrl(talukasListApi(districtCode)))
+      .then(res => {
+        console.log('Talukas response →', districtCode, res?.data);
+        return mapCodeNameOptions(res?.data?.data, 'taluka_code', 'taluka_name');
+      })
+      .catch(err => {
+        throwError(err);
+        return [] as SelectOption[];
+      });
+
+  // GET blocks for a district_code.
+  const fetchBlocks = (districtCode: string) =>
+    axios
+      .get<any>(getFullUrl(blocksListApi(districtCode)))
+      .then(res => {
+        console.log('Blocks response →', districtCode, res?.data);
+        return mapCodeNameOptions(res?.data?.data, 'block_code', 'block_name');
+      })
+      .catch(err => {
+        throwError(err);
+        return [] as SelectOption[];
+      });
+
+  // GET towns (village/city) for a taluka_code.
+  const fetchTowns = (talukaCode: string) =>
+    axios
+      .get<any>(getFullUrl(townsListApi(talukaCode)))
+      .then(res => {
+        console.log('Towns (village/city) response →', talukaCode, res?.data);
+        return mapCodeNameOptions(res?.data?.data, 'town_code', 'town_name');
+      })
+      .catch(err => {
+        throwError(err);
+        return [] as SelectOption[];
+      });
+
+  // Residential: district change → talukas + blocks.
+  useEffect(() => {
+    if (!resDistrict) {
+      setResTalukas([]);
+      setResBlocks([]);
+      return;
+    }
+    fetchTalukas(resDistrict).then(setResTalukas);
+    fetchBlocks(resDistrict).then(setResBlocks);
+  }, [resDistrict]);
+
+  // Residential: taluka change → towns/villages.
+  useEffect(() => {
+    if (!resTaluka) {
+      setResVillages([]);
+      return;
+    }
+    fetchTowns(resTaluka).then(setResVillages);
+  }, [resTaluka]);
+
+  // Location: district change → talukas + blocks.
+  useEffect(() => {
+    if (!locDistrict) {
+      setLocTalukas([]);
+      setLocBlocks([]);
+      return;
+    }
+    fetchTalukas(locDistrict).then(setLocTalukas);
+    fetchBlocks(locDistrict).then(setLocBlocks);
+  }, [locDistrict]);
+
+  // Location: taluka change → towns/villages.
+  useEffect(() => {
+    if (!locTaluka) {
+      setLocVillages([]);
+      return;
+    }
+    fetchTowns(locTaluka).then(setLocVillages);
+  }, [locTaluka]);
 
   // Area in SqMtr is derived from acres and shown read-only. Blank acres ->
   // blank SqMtr so the field doesn't show "0" before the user types.
@@ -148,7 +263,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="applicationCategory"
           label="Application Category"
           required
-          options={APPLICATION_CATEGORY}
+          options={opt('applicationCategory', APPLICATION_CATEGORY)}
           placeholder="Please Select Application Category"
         />
         <FormInput
@@ -170,7 +285,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="applicantCategory"
           label="Applicant Category"
           required
-          options={APPLICANT_CATEGORY}
+          options={opt('applicantCategory', APPLICANT_CATEGORY)}
           placeholder="Please Select Applicant Category"
         />
         <FormSelect
@@ -178,7 +293,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="gender"
           label="Select Gender"
           required
-          options={GENDER}
+          options={opt('gender', GENDER)}
         />
         <FormInput
           control={control}
@@ -214,7 +329,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="residential.district"
           label="Select District"
           required
-          options={DISTRICTS}
+          options={opt('district', DISTRICTS)}
           placeholder="Please Select District"
         />
         <FormSelect
@@ -222,7 +337,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="residential.taluka"
           label="Select Taluka"
           required
-          options={TALUKAS}
+          options={resTalukas.length ? resTalukas : TALUKAS}
           placeholder="Please Select Taluka"
         />
         <FormSelect
@@ -230,14 +345,14 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="residential.village"
           label="Select Village/City"
           required
-          options={VILLAGES}
+          options={resVillages.length ? resVillages : VILLAGES}
         />
         <FormSelect
           control={control}
           name="residential.block"
           label="Select Block"
           required
-          options={BLOCKS}
+          options={resBlocks.length ? resBlocks : BLOCKS}
           placeholder="Please Select Block"
         />
         <FormInput
@@ -289,7 +404,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
               name="existingPumpCapacity"
               label="Pump Capacity"
               required
-              options={EXISTING_PUMP_CAPACITY}
+              options={opt('pumpCapacity', EXISTING_PUMP_CAPACITY)}
               placeholder="Please Select"
             />
             <FormSelect
@@ -297,7 +412,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
               name="existingPumpType"
               label="Types of Existing Pump Subtype"
               required
-              options={EXISTING_PUMP_TYPE}
+              options={opt('pumpType', EXISTING_PUMP_TYPE)}
               placeholder="Please Select"
             />
             <FormSelect
@@ -305,7 +420,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
               name="existingPumpSubType"
               label="Types of Existing Pump Subtype"
               required
-              options={EXISTING_PUMP_SUBTYPE}
+              options={opt('pumpSubType', EXISTING_PUMP_SUBTYPE)}
               placeholder="Please Select"
             />
             <FormSelect
@@ -313,7 +428,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
               name="pumpCategory"
               label="Pump Category"
               required
-              options={PUMP_CATEGORY}
+              options={opt('pumpCategory', PUMP_CATEGORY)}
               placeholder="Please Select"
             />
             <FormSelect
@@ -328,7 +443,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
               name="pumpFuel"
               label="Fuel the Pump is Working"
               required
-              options={PUMP_FUEL}
+              options={opt('pumpFuel', PUMP_FUEL)}
               placeholder="Please Select"
             />
           </>
@@ -350,7 +465,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="location.district"
           label="Select District"
           required
-          options={DISTRICTS}
+          options={opt('district', DISTRICTS)}
           placeholder="Please Select District"
         />
         <FormSelect
@@ -358,7 +473,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="location.taluka"
           label="Select Taluka"
           required
-          options={TALUKAS}
+          options={locTalukas.length ? locTalukas : TALUKAS}
           placeholder="Please Select Taluka"
         />
         <FormSelect
@@ -366,14 +481,14 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="location.village"
           label="Select Village/City"
           required
-          options={VILLAGES}
+          options={locVillages.length ? locVillages : VILLAGES}
         />
         <FormSelect
           control={control}
           name="location.block"
           label="Select Block"
           required
-          options={BLOCKS}
+          options={locBlocks.length ? locBlocks : BLOCKS}
           placeholder="Please Select Block"
         />
         <FormInput
@@ -438,7 +553,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="pumpCapacity"
           label="Pump Capacity"
           required
-          options={PUMP_CAPACITY}
+          options={opt('pumpCapacity', PUMP_CAPACITY)}
           placeholder="Please Select Pump Capacity"
         />
         <FormSelect
@@ -446,7 +561,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="pumpType"
           label="Pump Type"
           required
-          options={PUMP_TYPE}
+          options={opt('pumpType', PUMP_TYPE)}
           placeholder="Please Select Pump Type"
         />
         <FormSelect
@@ -454,7 +569,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="pumpSubType"
           label="Pump Sub Type"
           required
-          options={PUMP_SUB_TYPE}
+          options={opt('pumpSubType', PUMP_SUB_TYPE)}
           placeholder="Please Select Pump Sub Type"
         />
         <FormSelect
@@ -462,7 +577,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="controllerType"
           label="Controller Type"
           required
-          options={CONTROLLER_TYPE}
+          options={opt('controllerType', CONTROLLER_TYPE)}
           placeholder="Please Select Controller Type"
         />
         <FormInput
@@ -482,7 +597,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           control={control}
           name="cropTypeLast"
           label="Crop Type (Last Year)"
-          options={CROP_TYPE}
+          options={opt('cropType', CROP_TYPE)}
         />
         <FormInput
           control={control}
@@ -495,7 +610,7 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           control={control}
           name="cropTypeLastToLast"
           label="Crop Type (Last To Last Year)"
-          options={CROP_TYPE}
+          options={opt('cropType', CROP_TYPE)}
         />
         <FormInput
           control={control}
@@ -509,14 +624,14 @@ function PersonalDetailsScreen({ defaultValues, onNext }: Props) {
           name="sourceOfIrrigation"
           label="Source Of Irrigation"
           required
-          options={SOURCE_OF_IRRIGATION}
+          options={opt('sourceOfIrrigation', SOURCE_OF_IRRIGATION)}
         />
         <FormSelect
           control={control}
           name="sourceOfWater"
           label="Source Of Water"
           required
-          options={SOURCE_OF_WATER}
+          options={opt('sourceOfWater', SOURCE_OF_WATER)}
         />
       </FormSection>
 

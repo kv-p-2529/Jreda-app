@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Text, View } from 'react-native';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { shadowMd } from '@/utils/shadows';
 import { showToast } from '@/utils/helpers';
 import { AadhaarValues, aadhaarSchema } from './registrationSchemas';
+import apiClient from '@/api/apiClient';
+import authApi from '@/api/authApi';
+import throwError from '@/api/throwError';
 
 // Step 1 of the registration wizard. Captures the 12-digit Aadhaar number
 // and passes it up; the parent then advances to the OTP step where we mask
@@ -19,19 +22,37 @@ import { AadhaarValues, aadhaarSchema } from './registrationSchemas';
 type Props = {
   defaultValues?: Partial<AadhaarValues>;
   onNext: (values: AadhaarValues) => void;
+  api: string;
+  token: string | null;
 };
 
-function VerifyAadharScreen({ defaultValues, onNext }: Props) {
+function VerifyAadharScreen({ defaultValues, onNext, api, token }: Props) {
+
+  const [loader, setLoader] = useState('');
+
   const { control, handleSubmit } = useForm<AadhaarValues>({
     resolver: zodResolver(aadhaarSchema),
     defaultValues: { aadhaar: '', ...defaultValues },
   });
 
-  // Fires only on a valid Aadhaar — mock "send OTP" then advance to the OTP
-  // step. Replace the toast with a real send-OTP API call when wired.
+  // Fires only on a valid Aadhaar — POST /app/aadhaar/initiate to send the OTP,
+  // then advance to the OTP step. Errors auto-toast via throwError.
   const onVerify = (values: AadhaarValues) => {
-    showToast('OTP sent to your Aadhaar-linked mobile number');
-    onNext(values);
+    setLoader('verify');
+
+    const body = {
+      aadhaar_number: values.aadhaar,
+    };
+
+    apiClient
+      .post(api, body)
+      .then((res) => {
+        const data = res?.data?.data;
+        showToast('OTP sent to your Aadhaar-linked mobile number');
+        onNext({...data, ...body});
+      })
+      .catch(err => throwError(err))
+      .finally(() => setLoader(''));
   };
 
   return (
@@ -90,6 +111,7 @@ function VerifyAadharScreen({ defaultValues, onNext }: Props) {
       <Button
         title="Verify Aadhar"
         onPress={handleSubmit(onVerify)}
+        loading={loader === 'verify'}
         className="bg-[#1382F5] py-3 mb-3"
         textClassName="text-[18px]"
       />

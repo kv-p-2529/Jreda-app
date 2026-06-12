@@ -4,15 +4,16 @@ import { useNavigation } from '@react-navigation/native';
 import { useForm, useController, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useDispatch } from 'react-redux';
 
 import lock from '@assets/lock.png';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Button from '@/components/ui/Button';
-import { loginSuccess } from '@/store/slices/authSlice';
 import { shadowSm } from '@/utils/shadows';
 import { showToast } from '@/utils/helpers';
+import authApi from '@/api/authApi';
+import throwError from '@/api/throwError';
+import axios from 'axios';
 
 // Login is mobile + OTP. Rendered inside AppModal from AppLayout — that's why
 // it doesn't have a Header of its own and uses closeModal to dismiss.
@@ -36,53 +37,12 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-// Dummy OTP for the mock auth flow — replace with a real verify call later.
-const DUMMY_OTP = '123456';
-
 // How long the user must wait before they can resend the OTP.
 const RESEND_SECONDS = 120;
 
 // Seconds -> "M:SS" for the resend countdown.
 const formatTime = (s: number) =>
   `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-
-// Small Indian tricolour flag for the +91 country-code chip — drawn with views
-// so it renders identically on every platform (Android won't show flag emoji).
-function FlagIN() {
-  return (
-    <View
-      style={{
-        width: 26,
-        height: 18,
-        borderRadius: 3,
-        overflow: 'hidden',
-        borderWidth: 0.5,
-        borderColor: '#E5E7EB',
-      }}
-    >
-      <View style={{ flex: 1, backgroundColor: '#FF9933' }} />
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#FFFFFF',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <View
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: 3,
-            borderWidth: 1,
-            borderColor: '#0A3DA6',
-          }}
-        />
-      </View>
-      <View style={{ flex: 1, backgroundColor: '#138808' }} />
-    </View>
-  );
-}
 
 interface IconInputProps {
   control: Control<LoginValues>;
@@ -145,9 +105,13 @@ function IconInput({
 
 export default function LoginScreen() {
   const { navigate } = useNavigation<any>();
-  const dispatch = useDispatch();
 
-  const { control, handleSubmit, trigger } = useForm<LoginValues>({
+  const { getLoginOtpApi, verifyLoginOtpApi } = authApi();
+
+  const [loader, setLoader] = useState('');
+  const [saralNo, setSaralNo] = useState('')
+
+  const { control, handleSubmit, trigger, getValues } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { mobile: '', otp: '' },
   });
@@ -157,7 +121,7 @@ export default function LoginScreen() {
   const [otpSent, setOtpSent] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [showOtp, setShowOtp] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  // const [rememberMe, setRememberMe] = useState(true);
 
   // Tick the resend countdown down to zero. Re-running on `secondsLeft` means a
   // fresh send (which resets it to RESEND_SECONDS) restarts the timer cleanly.
@@ -168,32 +132,44 @@ export default function LoginScreen() {
   }, [secondsLeft]);
 
   const onLogin = (values: LoginValues) => {
-    if (values.otp !== DUMMY_OTP) {
-      showToast('Invalid OTP. Please try again.');
-      return;
-    }
-    dispatch(
-      loginSuccess({
-        user: {
-          id: '1',
-          name: 'Agast Panday',
-          email: '',
-          role: 'farmer',
-        },
-        token: `mock-token-${values.mobile}`,
-      }),
-    );
+     setLoader('login');
+
+     const body = {
+      saral_no: saralNo,
+      otp: values.otp
+     };
+
+     axios
+       .post(verifyLoginOtpApi, body)
+       .then(() => {
+         showToast('Login successfully');
+       })
+       .catch(err => throwError(err))
+       .finally(() => setLoader(''));
+  };
+
+  const getOtpFun = () => {
+    setLoader('otp');
+    axios
+      .post(getLoginOtpApi, { identifier: getValues('mobile') })
+      .then((res) => {
+        const data = res?.data;
+        if(data?.saralNo) {
+          setSaralNo(data?.saralNo);
+        }
+        setOtpSent(true);
+        setSecondsLeft(data?.resend_after ?? RESEND_SECONDS);
+        showToast('OTP has been sent to your mobile number');
+      })
+      .catch(err => throwError(err))
+      .finally(() => setLoader(''));
   };
 
   const onGetOtp = async () => {
     const ok = await trigger('mobile');
     if (!ok) return;
-    // Mock send: unlock the OTP field, start the resend cooldown, and notify
-    // the user. The accepted OTP is DUMMY_OTP until a real verify endpoint is
-    // wired up.
-    setOtpSent(true);
-    setSecondsLeft(RESEND_SECONDS);
-    showToast('OTP has been sent to your mobile number');
+
+    getOtpFun();
   };
 
   const goToRegister = () => {
@@ -251,16 +227,21 @@ export default function LoginScreen() {
         <TouchableOpacity
           onPress={onGetOtp}
           activeOpacity={0.7}
-          disabled={secondsLeft > 0}
+          disabled={secondsLeft > 0 || loader === 'otp'}
         >
           <Text
             className="font-semibold text-[15px]"
             style={{
-              color: secondsLeft > 0 ? '#9CA3AF' : '#00B000',
+              color:
+                secondsLeft > 0 || loader ? '#9CA3AF' : '#00B000',
               textDecorationLine: 'underline',
             }}
           >
-            {otpSent && secondsLeft === 0 ? 'Resend OTP' : 'Get OTP'}
+            {loader === "otp"
+              ? 'Sending…'
+              : otpSent && secondsLeft === 0
+              ? 'Resend OTP'
+              : 'Get OTP'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -273,7 +254,7 @@ export default function LoginScreen() {
         control={control}
         name="otp"
         icon={<MaterialIcons name="lock-outline" size={22} color="#2563EB" />}
-        placeholder={`Enter the OTP ${otpSent ? '(123456)' : ''}`}
+        placeholder="Enter the OTP"
         keyboardType="number-pad"
         maxLength={6}
         disabled={!otpSent}
@@ -296,28 +277,6 @@ export default function LoginScreen() {
 
       {/* Remember Me + resend countdown */}
       <View className="flex-row items-center justify-between mt-4">
-        <TouchableOpacity
-          className="flex-row items-center"
-          activeOpacity={0.7}
-          onPress={() => setRememberMe(r => !r)}
-        >
-          <View
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 5,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: rememberMe ? '#1382F5' : 'transparent',
-              borderWidth: rememberMe ? 0 : 1.5,
-              borderColor: '#9CA3AF',
-            }}
-          >
-            {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
-          </View>
-          <Text className="ml-2 text-[14px] text-[#1A1A1A]">Remember Me</Text>
-        </TouchableOpacity>
-
         {secondsLeft > 0 && (
           <Text className="text-[14px] text-[#7B7B7B]">
             {formatTime(secondsLeft)} Sec Left
@@ -329,6 +288,7 @@ export default function LoginScreen() {
       <Button
         title="Login"
         onPress={handleSubmit(onLogin)}
+        loading={loader === 'login'}
         className="mt-6 bg-[#1382F5] h-14"
         textClassName="text-[18px]"
       />

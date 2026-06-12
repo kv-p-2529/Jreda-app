@@ -10,6 +10,8 @@ import StepIndicator from '@/components/ui/StepIndicator';
 import { shadowMd } from '@/utils/shadows';
 import { showToast } from '@/utils/helpers';
 import { OtpValues, otpSchema } from './registrationSchemas';
+import axios from 'axios';
+import throwError from '@/api/throwError';
 
 // Step 2 — split OTP entry across six boxes for the familiar masked-input UX.
 // We auto-focus the next box on digit entry and the previous box on backspace
@@ -23,15 +25,25 @@ const OTP_LENGTH = 6;
 const RESEND_SECONDS = 5 * 60;
 
 type Props = {
-  aadhaar: string;
+  aadhaar: any;
   onNext: (values: OtpValues) => void;
   onChangeAadhaar: () => void;
+  resendOtp: () => void;
+  api: string;
+  token: string | null;
 };
 
-function VerifyOtpScreen({ aadhaar, onNext, onChangeAadhaar }: Props) {
+function VerifyOtpScreen({
+  aadhaar,
+  onNext,
+  onChangeAadhaar,
+  resendOtp,
+  api,
+  token,
+}: Props) {
   const { control, handleSubmit, setValue, watch } = useForm<OtpValues>({
     resolver: zodResolver(otpSchema),
-    defaultValues: { otp: '' },
+    defaultValues: { otp: '202906' },
   });
 
   const otp = watch('otp');
@@ -57,13 +69,22 @@ function VerifyOtpScreen({ aadhaar, onNext, onChangeAadhaar }: Props) {
   // verify-OTP and data-fetch API calls when wired — the data fetch must be
   // kicked off in the verify call's success handler, not in parallel.
   const handleVerify = (values: OtpValues) => {
-    if (phase !== 'idle') return;
     setPhase('verifying');
-    verifyTimer.current = setTimeout(() => {
-      // OTP verified — now start fetching data.
-      setPhase('fetching');
-      verifyTimer.current = setTimeout(() => onNext(values), 1500);
-    }, 1500);
+    // values?.otp
+    const body = {
+      aadhaar_number: aadhaar?.aadhaar_number,
+      otp: '202906',
+      session_token: token,
+    };
+    axios
+      .post(api, body)
+      .then(res => {
+        const data = res?.data?.data?.data_from_uidai;
+        showToast('OTP verified successfully');
+        onNext({ ...data, aadhaar_number: aadhaar?.aadhaar_number });
+      })
+      .catch(err => throwError(err))
+      .finally(() => setPhase('idle'));
   };
 
   useEffect(() => {
@@ -76,6 +97,7 @@ function VerifyOtpScreen({ aadhaar, onNext, onChangeAadhaar }: Props) {
   // and notifies the user. Swap the toast for a real resend-OTP API call later.
   const handleResend = () => {
     if (secondsLeft > 0) return;
+    resendOtp();
     setSecondsLeft(RESEND_SECONDS);
     showToast('OTP resent to your Aadhaar-linked mobile number');
   };
@@ -100,7 +122,9 @@ function VerifyOtpScreen({ aadhaar, onNext, onChangeAadhaar }: Props) {
     }
   };
 
-  const maskedAadhaar = `XXXX XXXX ${aadhaar.slice(-4) || '----'}`;
+  const maskedAadhaar = `XXXX XXXX ${
+    aadhaar?.aadhaar_number?.slice(-4) || '----'
+  }`;
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
   const timerLabel = `${minutes}:${seconds

@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, lazy } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAppSelector } from '../store/store';
 import ScreenLayout from '@/components/layout/ScreenLayout';
 import { ReceiptData } from '@/pdfs/PaymentReceipt';
+import { useAuth } from '@/services/baseService';
 
 // Typed routes — the source of truth for navigation params. Add a new route
 // here first, then `navigate('NewRoute')` becomes type-checked everywhere.
@@ -48,7 +48,9 @@ const AddComplaint = lazy(() => import('@screens/grievance/AddComplaint'));
 const ReceiptScreen = lazy(() => import('@screens/receipt/ReceiptScreen'));
 
 export default function AppNavigator() {
-  const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+  // Auth state is hydrated at startup (App.tsx initAuth) and kept reactive by
+  // useAuth, so a login/logout re-renders this and swaps the stack.
+  const { isAuthenticated } = useAuth();
 
   const screenOptions = useMemo(
     () => ({
