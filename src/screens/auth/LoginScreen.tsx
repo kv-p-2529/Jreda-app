@@ -109,7 +109,7 @@ export default function LoginScreen() {
   const { getLoginOtpApi, verifyLoginOtpApi } = authApi();
 
   const [loader, setLoader] = useState('');
-  const [saralNo, setSaralNo] = useState('')
+  const [saralNo, setSaralNo] = useState('');
 
   const { control, handleSubmit, trigger, getValues } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -132,29 +132,29 @@ export default function LoginScreen() {
   }, [secondsLeft]);
 
   const onLogin = (values: LoginValues) => {
-     setLoader('login');
+    setLoader('login');
 
-     const body = {
+    const body = {
       saral_no: saralNo,
-      otp: values.otp
-     };
+      otp: values.otp,
+    };
 
-     axios
-       .post(verifyLoginOtpApi, body)
-       .then(() => {
-         showToast('Login successfully');
-       })
-       .catch(err => throwError(err))
-       .finally(() => setLoader(''));
+    axios
+      .post(verifyLoginOtpApi, body)
+      .then(() => {
+        showToast('Login successfully');
+      })
+      .catch(err => throwError(err))
+      .finally(() => setLoader(''));
   };
 
   const getOtpFun = () => {
     setLoader('otp');
     axios
       .post(getLoginOtpApi, { identifier: getValues('mobile') })
-      .then((res) => {
+      .then(res => {
         const data = res?.data;
-        if(data?.saralNo) {
+        if (data?.saralNo) {
           setSaralNo(data?.saralNo);
         }
         setOtpSent(true);
@@ -232,12 +232,11 @@ export default function LoginScreen() {
           <Text
             className="font-semibold text-[15px]"
             style={{
-              color:
-                secondsLeft > 0 || loader ? '#9CA3AF' : '#00B000',
+              color: secondsLeft > 0 || loader ? '#9CA3AF' : '#00B000',
               textDecorationLine: 'underline',
             }}
           >
-            {loader === "otp"
+            {loader === 'otp'
               ? 'Sending…'
               : otpSent && secondsLeft === 0
               ? 'Resend OTP'

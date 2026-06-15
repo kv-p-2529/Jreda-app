@@ -60,12 +60,9 @@ export const YES_NO: SelectOption[] = [
 ];
 
 export const PUMP_CAPACITY: SelectOption[] = [
-  { label: '1 hp', value: '1' },
   { label: '2 hp', value: '2' },
   { label: '3 hp', value: '3' },
   { label: '5 hp', value: '5' },
-  { label: '7.5 hp', value: '7.5' },
-  { label: '10 hp', value: '10' },
 ];
 
 export const PUMP_TYPE: SelectOption[] = [
@@ -108,10 +105,9 @@ export const SOURCE_OF_WATER: SelectOption[] = [
 // portal's dropdowns.
 
 export const EXISTING_PUMP_CAPACITY: SelectOption[] = [
+  { label: '2 hp', value: '2' },
   { label: '3 hp', value: '3' },
   { label: '5 hp', value: '5' },
-  { label: '7.5 hp', value: '7.5' },
-  { label: '10 hp', value: '10' },
 ];
 
 export const EXISTING_PUMP_TYPE: SelectOption[] = [
@@ -232,10 +228,7 @@ export const SQMTR_PER_ACRE = 4046.8564224;
 // Capacity. PLACEHOLDER values — replace with the official PM-KUSUM fee slab
 // once the backend provides it. Keyed by PUMP_CAPACITY value (hp as string).
 export const PUMP_CAPACITY_CONTRIBUTION: Record<string, string> = {
-  '1': '15000',
-  '2': '20000',
-  '3': '25000',
-  '5': '40000',
-  '7.5': '55000',
-  '10': '70000',
+  '2': '5000',
+  '3': '7000',
+  '5': '10000',
 };

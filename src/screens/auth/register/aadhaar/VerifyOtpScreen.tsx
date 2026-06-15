@@ -9,7 +9,7 @@ import LoadingOverlay from '@/components/ui/LoadingOverlay';
 import StepIndicator from '@/components/ui/StepIndicator';
 import { shadowMd } from '@/utils/shadows';
 import { showToast } from '@/utils/helpers';
-import { OtpValues, otpSchema } from './registrationSchemas';
+import { OtpValues, otpSchema } from '../registrationSchemas';
 import axios from 'axios';
 import throwError from '@/api/throwError';
 

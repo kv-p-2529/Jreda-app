@@ -4,14 +4,15 @@ import { useNavigation } from '@react-navigation/native';
 
 import { useScrollToTop } from '@/components/layout/ScreenLayout';
 import Header from '@/components/Header';
-import VerifyAadharScreen from './VerifyAadharScreen';
-import VerifyOtpScreen from './VerifyOtpScreen';
-import PersonalDetailsScreen from './PersonalDetailsScreen';
-import DocumentsScreen from './DocumentsScreen';
-import PreviewScreen from './PreviewScreen';
-import PaymentScreen from './PaymentScreen';
-import RegistrationSuccessModal from './RegistrationSuccessModal';
-import PaymentFailedModal from './PaymentFailedModal';
+import VerifyAadharScreen from './aadhaar/VerifyAadharScreen';
+import VerifyOtpScreen from './aadhaar/VerifyOtpScreen';
+import PersonalDetailsScreen from './details/PersonalDetailsScreen';
+import { mapDraftToFormValues } from './details/personalDetailsPayload';
+import DocumentsScreen from './documents/DocumentsScreen';
+import PreviewScreen from './preview/PreviewScreen';
+import PaymentScreen from './payment/PaymentScreen';
+import RegistrationSuccessModal from './payment/RegistrationSuccessModal';
+import PaymentFailedModal from './payment/PaymentFailedModal';
 
 import { payRegistrationFee } from '@/services/payment';
 import type { ReceiptData } from '@/pdfs/PaymentReceipt';
@@ -87,11 +88,19 @@ function RegisterIndex() {
   const [detailsData, setDetailsData] = useState<PersonalDetailsValues | null>(
     null,
   );
+  // value→label lookup for the PersonalDetails select fields, captured at submit
+  // so the preview shows names (e.g. "Barhi") instead of stored codes ("2645").
+  const [detailsLabels, setDetailsLabels] = useState<Record<string, string>>(
+    {},
+  );
   const [documentsData, setDocumentsData] = useState<DocumentsValues | null>(
     null,
   );
 
   const [masterList, setMasterList] = useState(null);
+  // Resumed draft from GET /registration/:token — the backend's flat row, used
+  // to prefill the details form (mapped via mapDraftToFormValues).
+  const [draftData, setDraftData] = useState<any>(null);
 
   const [successOpen, setSuccessOpen] = useState(false);
   const [failedOpen, setFailedOpen] = useState(false);
@@ -144,7 +153,6 @@ function RegisterIndex() {
 
   // Fire once on mount and stash the returned session token.
   useEffect(() => {
-    initiateRegistrationFun();
     fetchMasterList();
   }, []);
 
@@ -280,16 +288,34 @@ function RegisterIndex() {
     6: 'payment',
   };
 
+  const resumeRegisterationFun = (token: string) => {
+    setLoader('resume');
+    axios
+      .get<any>(registerResumeApi(token))
+      .then(res => {
+        console.log('Registration resumed', res.data?.data);
+        const data = res?.data?.data;
+        setDraftData(data);
+        setStep('details');
+      })
+      .catch(err => {
+        throwError(err);
+      })
+      .finally(() => setLoader(''));
+  };
+
   const firstStepFun = (values: any) => {
     setAadhaarData(values);
 
     // scenario: 'existing' 'otp_sent';
+    console.log(values);
 
-    if (values?.status === 'existing') {
-      setStep(steps[values?.data?.current_section]);
+    if (values?.scenario === 'existing') {
       setSessionToken(values?.data?.session_token);
+      resumeRegisterationFun(values?.data?.session_token);
       return;
     }
+    initiateRegistrationFun();
     setStep('otp');
   };
 
@@ -311,22 +337,22 @@ function RegisterIndex() {
       .finally(() => setLoader(''));
   };
 
-  const updateFormStatus = (section: string | number, retriesLeft = 2) => {
-    axios
-      .put(registerSectionUpdateApi(sessionToken ?? '', section))
-      .then(res => {
-        console.log('Form status updated', res.data);
-      })
-      .catch(err => {
-        // Retry up to twice (3 attempts total), then give up and surface the
-        // error instead of looping forever.
-        if (retriesLeft > 0) {
-          updateFormStatus(section, retriesLeft - 1);
-        } else {
-          throwError(err);
-        }
-      });
-  };
+  // const updateFormStatus = (section: string | number, retriesLeft = 2) => {
+  //   axios
+  //     .put(registerSectionUpdateApi(sessionToken ?? '', section))
+  //     .then(res => {
+  //       console.log('Form status updated', res.data);
+  //     })
+  //     .catch(err => {
+  //       // Retry up to twice (3 attempts total), then give up and surface the
+  //       // error instead of looping forever.
+  //       if (retriesLeft > 0) {
+  //         updateFormStatus(section, retriesLeft - 1);
+  //       } else {
+  //         throwError(err);
+  //       }
+  //     });
+  // };
 
   const renderStep = () => {
     switch (step) {
@@ -346,7 +372,7 @@ function RegisterIndex() {
           <VerifyOtpScreen
             aadhaar={aadhaarData}
             resendOtp={() => verifyAadhaarFun()}
-            onNext={() => (setStep('details'), updateFormStatus(1))}
+            onNext={() => setStep('details')}
             onChangeAadhaar={() => setStep('aadhaar')}
             api={aadhaarVerifyOtpApi}
             token={sessionToken}
@@ -355,12 +381,18 @@ function RegisterIndex() {
       case 'details':
         return (
           <PersonalDetailsScreen
-            defaultValues={detailsData ?? undefined}
+            // Prefer in-session edits (detailsData); otherwise prefill from the
+            // resumed draft mapped back into the form shape.
+            defaultValues={detailsData ?? mapDraftToFormValues(draftData)}
             options={masterOptions}
-            onNext={values => {
+            token={sessionToken}
+            aadhaarLast4={
+              aadhaarData?.aadhaar_number?.slice(-4) ?? draftData?.aadhaar_last4
+            }
+            onNext={(values, labels) => {
               setDetailsData(values);
+              setDetailsLabels(labels);
               setStep('documents');
-              updateFormStatus(2);
             }}
           />
         );
@@ -371,7 +403,6 @@ function RegisterIndex() {
             onNext={values => {
               setDocumentsData(values);
               setStep('preview');
-              updateFormStatus(3);
             }}
             onBack={() => setStep('details')}
           />
@@ -380,11 +411,12 @@ function RegisterIndex() {
         return detailsData && documentsData ? (
           <PreviewScreen
             details={detailsData}
+            labels={detailsLabels}
             documents={documentsData}
             onEditDetails={() => setStep('details')}
             onEditDocuments={() => setStep('documents')}
             onBack={() => setStep('documents')}
-            onNext={() => (setStep('payment'), updateFormStatus(4))}
+            onNext={() => setStep('payment')}
           />
         ) : null;
       case 'payment':

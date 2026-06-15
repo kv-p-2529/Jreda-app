@@ -42,7 +42,11 @@ const addressSchema = z.object({
     .regex(/^\d{6}$/, 'Only digits allowed'),
 });
 
-export const personalDetailsSchema = z.object({
+// Base object (no cross-field rules). Kept separate from `personalDetailsSchema`
+// so individual sections can be validated in isolation via `.pick(...)` — the
+// auto-save (see `isSectionValid`) leans on this. The superRefine that makes the
+// existing-pump fields conditionally required is layered on below.
+const personalDetailsBase = z.object({
   // Personal
   applicationCategory: z.string().min(1, 'Required'),
   applicantName: z.string().min(1, 'Required'),
@@ -105,9 +109,15 @@ export const personalDetailsSchema = z.object({
   cropCountLastToLast: z.string().optional(),
   sourceOfIrrigation: z.string().min(1, 'Required'),
   sourceOfWater: z.string().min(1, 'Required'),
-}).superRefine((data, ctx) => {
-  // When the beneficiary has an existing pump, its detail fields become
-  // mandatory (Generation stays optional — no asterisk in the UI).
+});
+
+// Existing-pump fields are required only when the beneficiary has a pump
+// (Generation stays optional — no asterisk in the UI). Reused by both the full
+// form schema and the section-3 validation in `isSectionValid`.
+const requireExistingPumpFields = (
+  data: { beneficiaryExistingPump?: string } & Record<string, unknown>,
+  ctx: z.RefinementCtx,
+) => {
   if (data.beneficiaryExistingPump === 'yes') {
     const requiredWhenYes = [
       'existingPumpCapacity',
@@ -126,8 +136,76 @@ export const personalDetailsSchema = z.object({
       }
     });
   }
-});
+};
+
+export const personalDetailsSchema =
+  personalDetailsBase.superRefine(requireExistingPumpFields);
 export type PersonalDetailsValues = z.infer<typeof personalDetailsSchema>;
+
+// Which form fields belong to each backend section (1–6). Used by the auto-save
+// to validate one section at a time — a section is saved only once its fields
+// pass validation. Keys must stay in sync with the section spec / payload
+// builder in PersonalDetailsScreen.
+const SECTION_FIELD_KEYS = {
+  1: [
+    'applicationCategory',
+    'applicantName',
+    'fatherName',
+    'applicantCategory',
+    'gender',
+    'mobile',
+    'email',
+  ],
+  2: ['residential'],
+  3: [
+    'beneficiaryExistingPump',
+    'existingPumpCapacity',
+    'existingPumpType',
+    'existingPumpSubType',
+    'pumpCategory',
+    'generation',
+    'pumpFuel',
+  ],
+  4: ['location'],
+  5: [
+    'pumpCapacity',
+    'pumpType',
+    'pumpSubType',
+    'controllerType',
+    'farmerContribution',
+  ],
+  6: [
+    'cropTypeLast',
+    'cropCountLast',
+    'cropTypeLastToLast',
+    'cropCountLastToLast',
+    'sourceOfIrrigation',
+    'sourceOfWater',
+  ],
+} as const satisfies Record<number, readonly (keyof PersonalDetailsValues)[]>;
+
+export type SectionNumber = keyof typeof SECTION_FIELD_KEYS;
+export const SECTION_NUMBERS = Object.keys(SECTION_FIELD_KEYS).map(
+  Number,
+) as SectionNumber[];
+
+// True when the given section's fields are all valid (no zod errors), so the
+// caller can save just that section. Section 3 re-applies the existing-pump
+// cross-field rule; the others are a plain field subset of the base schema.
+export function isSectionValid(
+  section: SectionNumber,
+  values: PersonalDetailsValues,
+): boolean {
+  const mask = Object.fromEntries(
+    SECTION_FIELD_KEYS[section].map(key => [key, true]),
+  ) as { [K in keyof PersonalDetailsValues]?: true };
+
+  const picked = personalDetailsBase.pick(mask);
+  const schema =
+    section === 3 ? picked.superRefine(requireExistingPumpFields) : picked;
+
+  return schema.safeParse(values).success;
+}
 
 // A file picked from the device. `uri` is what we'll POST when the upload
 // endpoint lands (a content:// uri on Android, file:// on iOS); `name`/`type`/

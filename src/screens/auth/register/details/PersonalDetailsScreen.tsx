@@ -1,13 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import axios from 'axios';
-
-import authApi from '@/api/authApi';
-import throwError from '@/api/throwError';
-import { getFullUrl } from '@/services/baseService';
 
 import Button from '@/components/ui/Button';
 import StepIndicator from '@/components/ui/StepIndicator';
@@ -15,18 +10,22 @@ import FormInput from '@/components/ui/form/FormInput';
 import FormSelect from '@/components/ui/form/FormSelect';
 import FormDate from '@/components/ui/form/FormDate';
 import FormSection from '@/components/ui/form/FormSection';
+import type { SelectOption } from '@/components/ui/form/FormSelect';
 
 // Step 2 — the big form. Address fields appear twice (residential + land
 // location) under different prefixes; we lean on rhf's nested-path support
 // (`residential.state`, `location.state`) to keep schema and UI parallel.
 //
-// `personalDetailsSchema` is imported but the resolver is commented out
-// below — useful during layout iteration so the user doesn't have to fill
-// every field to test navigation. Re-enable before shipping.
+// The heavy lifting lives in siblings: defaults (`registrationDefaults`), the
+// value→label + per-section payload mapping (`personalDetailsPayload`), the
+// district→taluka/village/block cascade (`useLocationCascade`), and the
+// per-section auto-save (`useSectionAutosave`). This file is just layout +
+// wiring. `personalDetailsSchema` drives the resolver — validation must be live
+// because the section saves are gated on it.
 import {
   PersonalDetailsValues,
   personalDetailsSchema,
-} from './registrationSchemas';
+} from '../registrationSchemas';
 import {
   APPLICANT_CATEGORY,
   APPLICATION_CATEGORY,
@@ -51,82 +50,49 @@ import {
   TALUKAS,
   VILLAGES,
   YES_NO,
-  mapCodeNameOptions,
   type MasterOptions,
-} from './registrationOptions';
-import type { SelectOption } from '@/components/ui/form/FormSelect';
-
-// State is fixed to Jharkhand for this portal — the value stored in the form.
-const FIXED_STATE = 'jharkhand';
+} from '../registrationOptions';
+import { initialValues } from './registrationDefaults';
+import { buildLabelMap, optionsFor } from './personalDetailsPayload';
+import { useLocationCascade } from './useLocationCascade';
+import { useSectionAutosave } from './useSectionAutosave';
 
 type Props = {
   defaultValues?: Partial<PersonalDetailsValues>;
   // Dropdown options from the master-list API. Optional so the screen still
   // renders (on the static fallbacks) before the response lands.
   options?: MasterOptions;
-  onNext: (values: PersonalDetailsValues) => void;
+  // `labels` is a value→label lookup for the select fields, so downstream
+  // (PreviewScreen) can show human-readable names instead of stored codes.
+  onNext: (
+    values: PersonalDetailsValues,
+    labels: Record<string, string>,
+  ) => void;
+
+  token: string | null;
+  // Last 4 digits of the verified Aadhaar number — captured back in the
+  // Aadhaar step (not in this form), so it's passed down for the Section 1
+  // payload (`aadhaar_last4`).
+  aadhaarLast4?: string;
 };
 
-const emptyAddress = {
-  state: '',
-  district: '',
-  taluka: '',
-  village: '',
-  block: '',
-  panchayat: '',
-  policeStation: '',
-  postOffice: '',
-  pinCode: '',
-};
-
-const initialValues: PersonalDetailsValues = {
-  applicationCategory: '',
-  applicantName: '',
-  fatherName: '',
-  applicantCategory: '',
-  gender: '',
-  mobile: '',
-  email: '',
-  // State is pre-set and locked to Jharkhand in both addresses.
-  residential: { ...emptyAddress, state: FIXED_STATE },
-  beneficiaryExistingPump: '',
-  // Existing-pump details — populated only when the user has an existing pump.
-  existingPumpCapacity: '',
-  existingPumpType: '',
-  existingPumpSubType: '',
-  pumpCategory: '',
-  generation: '',
-  pumpFuel: '',
-  location: {
-    ...emptyAddress,
-    state: FIXED_STATE,
-    areaInAcres: '',
-    areaInSqMtr: '',
-    lagaanRasidDate: '',
-  },
-  pumpCapacity: '',
-  pumpType: '',
-  pumpSubType: '',
-  controllerType: '',
-  farmerContribution: '',
-  cropTypeLast: '',
-  cropCountLast: '',
-  cropTypeLastToLast: '',
-  cropCountLastToLast: '',
-  sourceOfIrrigation: '',
-  sourceOfWater: '',
-};
-
-function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
-  const { control, handleSubmit, setValue } = useForm<PersonalDetailsValues>({
-    // resolver: zodResolver(personalDetailsSchema),
-    defaultValues: { ...initialValues, ...defaultValues },
-  });
+function PersonalDetailsScreen({
+  defaultValues,
+  options,
+  onNext,
+  token,
+  aadhaarLast4,
+}: Props) {
+  const { control, handleSubmit, setValue, getValues } =
+    useForm<PersonalDetailsValues>({
+      resolver: zodResolver(personalDetailsSchema),
+      defaultValues: { ...initialValues, ...defaultValues },
+    });
 
   // Prefer the API-provided options for a field; fall back to the static list
   // when the master list hasn't loaded yet (or doesn't cover that field).
   const opt = (key: keyof MasterOptions, fallback: SelectOption[]) =>
-    options?.[key]?.length ? options[key] : fallback;
+    optionsFor(options, key, fallback);
 
   // Fields that drive auto-calculated values. useWatch re-renders only this
   // component when they change (not the whole form tree).
@@ -135,104 +101,26 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
   const hasExistingPump =
     useWatch({ control, name: 'beneficiaryExistingPump' }) === 'yes';
 
-  // ─── Location cascade (district → talukas + blocks, taluka → towns/villages)
-  // The talukas/towns/blocks endpoints are keyed off the parent selection, so
-  // we fetch them on change for BOTH address sections (residential + location).
-  // Response shapes aren't confirmed yet — each fetch console.logs the raw body
-  // so we can see the real keys, and toLocationOptions maps them defensively.
-  const { talukasListApi, townsListApi, blocksListApi } = authApi();
+  // District → taluka/village/block option lists for both address sections.
+  const cascade = useLocationCascade(control);
+  const {
+    resTalukas,
+    resVillages,
+    resBlocks,
+    locTalukas,
+    locVillages,
+    locBlocks,
+  } = cascade;
 
-  const [resTalukas, setResTalukas] = useState<SelectOption[]>([]);
-  const [resVillages, setResVillages] = useState<SelectOption[]>([]);
-  const [resBlocks, setResBlocks] = useState<SelectOption[]>([]);
-  const [locTalukas, setLocTalukas] = useState<SelectOption[]>([]);
-  const [locVillages, setLocVillages] = useState<SelectOption[]>([]);
-  const [locBlocks, setLocBlocks] = useState<SelectOption[]>([]);
-
-  // Watch the parent selections that drive the cascade.
-  const resDistrict = useWatch({ control, name: 'residential.district' });
-  const resTaluka = useWatch({ control, name: 'residential.taluka' });
-  const locDistrict = useWatch({ control, name: 'location.district' });
-  const locTaluka = useWatch({ control, name: 'location.taluka' });
-
-  // GET talukas for a district_code.
-  const fetchTalukas = (districtCode: string) =>
-    axios
-      .get<any>(getFullUrl(talukasListApi(districtCode)))
-      .then(res => {
-        console.log('Talukas response →', districtCode, res?.data);
-        return mapCodeNameOptions(res?.data?.data, 'taluka_code', 'taluka_name');
-      })
-      .catch(err => {
-        throwError(err);
-        return [] as SelectOption[];
-      });
-
-  // GET blocks for a district_code.
-  const fetchBlocks = (districtCode: string) =>
-    axios
-      .get<any>(getFullUrl(blocksListApi(districtCode)))
-      .then(res => {
-        console.log('Blocks response →', districtCode, res?.data);
-        return mapCodeNameOptions(res?.data?.data, 'block_code', 'block_name');
-      })
-      .catch(err => {
-        throwError(err);
-        return [] as SelectOption[];
-      });
-
-  // GET towns (village/city) for a taluka_code.
-  const fetchTowns = (talukaCode: string) =>
-    axios
-      .get<any>(getFullUrl(townsListApi(talukaCode)))
-      .then(res => {
-        console.log('Towns (village/city) response →', talukaCode, res?.data);
-        return mapCodeNameOptions(res?.data?.data, 'town_code', 'town_name');
-      })
-      .catch(err => {
-        throwError(err);
-        return [] as SelectOption[];
-      });
-
-  // Residential: district change → talukas + blocks.
-  useEffect(() => {
-    if (!resDistrict) {
-      setResTalukas([]);
-      setResBlocks([]);
-      return;
-    }
-    fetchTalukas(resDistrict).then(setResTalukas);
-    fetchBlocks(resDistrict).then(setResBlocks);
-  }, [resDistrict]);
-
-  // Residential: taluka change → towns/villages.
-  useEffect(() => {
-    if (!resTaluka) {
-      setResVillages([]);
-      return;
-    }
-    fetchTowns(resTaluka).then(setResVillages);
-  }, [resTaluka]);
-
-  // Location: district change → talukas + blocks.
-  useEffect(() => {
-    if (!locDistrict) {
-      setLocTalukas([]);
-      setLocBlocks([]);
-      return;
-    }
-    fetchTalukas(locDistrict).then(setLocTalukas);
-    fetchBlocks(locDistrict).then(setLocBlocks);
-  }, [locDistrict]);
-
-  // Location: taluka change → towns/villages.
-  useEffect(() => {
-    if (!locTaluka) {
-      setLocVillages([]);
-      return;
-    }
-    fetchTowns(locTaluka).then(setLocVillages);
-  }, [locTaluka]);
+  // Auto-save: each section persists on its own once it passes validation.
+  // `saving` disables the continue button while a section PUT is in flight.
+  const { saving } = useSectionAutosave({
+    control,
+    getValues,
+    token,
+    buildLabelMap: () => buildLabelMap(options, cascade),
+    aadhaarLast4,
+  });
 
   // Area in SqMtr is derived from acres and shown read-only. Blank acres ->
   // blank SqMtr so the field doesn't show "0" before the user types.
@@ -252,11 +140,17 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
     );
   }, [selectedPumpCapacity, setValue]);
 
+  // The button no longer triggers saving — sections persist automatically as
+  // they pass validation. handleSubmit gates this on the whole form being valid,
+  // so the press just advances to the next step once everything is filled in.
+  const submit = (values: PersonalDetailsValues) =>
+    onNext(values, buildLabelMap(options, cascade));
+
   return (
     <View className="my-4">
       <StepIndicator current={2} />
 
-      {/* PERSONAL DETAILS */}
+      {/* PERSONAL DETAILS -> section: 1*/}
       <FormSection title="Personal Details" icon="person-outline">
         <FormSelect
           control={control}
@@ -314,7 +208,7 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
         />
       </FormSection>
 
-      {/* RESIDENTIAL ADDRESS */}
+      {/* RESIDENTIAL ADDRESS -> section: 2*/}
       <FormSection title="Residential Address" icon="home-outline">
         <FormSelect
           control={control}
@@ -385,7 +279,7 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
         />
       </FormSection>
 
-      {/* PUMP DETAILS */}
+      {/* PUMP DETAILS -> section: 3*/}
       <FormSection title="Pump Details" icon="water-outline">
         <FormSelect
           control={control}
@@ -450,7 +344,7 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
         )}
       </FormSection>
 
-      {/* LOCATION ADDRESS */}
+      {/* LOCATION ADDRESS -> section: 4*/}
       <FormSection title="Location Address" icon="location-outline">
         <FormSelect
           control={control}
@@ -546,7 +440,7 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
         />
       </FormSection>
 
-      {/* REQUIRED PUMP DETAILS */}
+      {/* REQUIRED PUMP DETAILS -> section: 5*/}
       <FormSection title="Required Pump Details" icon="construct-outline">
         <FormSelect
           control={control}
@@ -591,7 +485,7 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
         />
       </FormSection>
 
-      {/* IRRIGATION DETAILS */}
+      {/* IRRIGATION DETAILS -> section: 6*/}
       <FormSection title="Irrigation Details" icon="leaf-outline">
         <FormSelect
           control={control}
@@ -643,9 +537,13 @@ function PersonalDetailsScreen({ defaultValues, options, onNext }: Props) {
         </Text>
       </View>
 
+      {/* Saving happens automatically per section; the button only advances —
+          disabled while a section save is in flight. */}
       <Button
         title="Save and Continue"
-        onPress={handleSubmit(onNext)}
+        onPress={handleSubmit(submit)}
+        disabled={saving}
+        loading={saving}
         className="bg-[#1382F5] py-3"
         textClassName="text-[18px]"
       />

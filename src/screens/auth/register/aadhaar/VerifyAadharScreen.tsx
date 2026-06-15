@@ -9,7 +9,7 @@ import FormInput from '@/components/ui/form/FormInput';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { shadowMd } from '@/utils/shadows';
 import { showToast } from '@/utils/helpers';
-import { AadhaarValues, aadhaarSchema } from './registrationSchemas';
+import { AadhaarValues, aadhaarSchema } from '../registrationSchemas';
 import apiClient from '@/api/apiClient';
 import authApi from '@/api/authApi';
 import throwError from '@/api/throwError';
@@ -47,7 +47,7 @@ function VerifyAadharScreen({ defaultValues, onNext, api, token }: Props) {
     apiClient
       .post(api, body)
       .then((res) => {
-        const data = res?.data?.data;
+        const data = res?.data;
         showToast('OTP sent to your Aadhaar-linked mobile number');
         onNext({...data, ...body});
       })

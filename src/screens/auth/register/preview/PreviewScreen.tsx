@@ -15,26 +15,7 @@ import {
   DocumentsValues,
   PersonalDetailsValues,
   declarationSchema,
-} from './registrationSchemas';
-import {
-  APPLICANT_CATEGORY,
-  APPLICATION_CATEGORY,
-  BLOCKS,
-  CONTROLLER_TYPE,
-  CROP_TYPE,
-  DISTRICTS,
-  GENDER,
-  PUMP_CAPACITY,
-  PUMP_SUB_TYPE,
-  PUMP_TYPE,
-  SOURCE_OF_IRRIGATION,
-  SOURCE_OF_WATER,
-  STATES,
-  TALUKAS,
-  VILLAGES,
-  YES_NO,
-  getOptionLabel,
-} from './registrationOptions';
+} from '../registrationSchemas';
 
 // Step 4 — read-only review of everything captured so far, plus two
 // declaration checkboxes the user must tick before proceeding to payment.
@@ -43,6 +24,9 @@ import {
 
 type Props = {
   details: PersonalDetailsValues;
+  // value→label lookup captured in PersonalDetailsScreen, so select-backed
+  // fields show human-readable names instead of the stored API codes.
+  labels?: Record<string, string>;
   documents: DocumentsValues;
   onEditDetails: () => void;
   onEditDocuments: () => void;
@@ -62,12 +46,17 @@ const DOC_LABELS: { key: keyof DocumentsValues; label: string }[] = [
 
 function PreviewScreen({
   details,
+  labels,
   documents,
   onEditDetails,
   onEditDocuments,
   onBack,
   onNext,
 }: Props) {
+  // Resolve a stored value to its captured label; fall back to the raw value so
+  // we never render blank if a label is missing.
+  const resolve = (value?: string) =>
+    value ? labels?.[value] ?? value : '';
   // The declaration schema requires `true` literals — but rhf needs initial
   // values that aren't already-passing, otherwise the submit fires on first
   // tap without the user actually confirming. The `as unknown as true` cast
@@ -98,15 +87,15 @@ function PreviewScreen({
       rows: [
         {
           label: 'Application Category :',
-          value: getOptionLabel(APPLICATION_CATEGORY, details.applicationCategory),
+          value: resolve(details.applicationCategory),
         },
         { label: 'Name Of Applicant :', value: details.applicantName },
         { label: 'Father/Husband Name :', value: details.fatherName },
         {
           label: 'Applicant Category :',
-          value: getOptionLabel(APPLICANT_CATEGORY, details.applicantCategory),
+          value: resolve(details.applicantCategory),
         },
-        { label: 'Select Gender :', value: getOptionLabel(GENDER, details.gender) },
+        { label: 'Select Gender :', value: resolve(details.gender) },
         { label: 'Mobile No :', value: details.mobile },
         { label: 'Email Address :', value: details.email },
       ],
@@ -115,11 +104,11 @@ function PreviewScreen({
       title: 'Residential Address',
       icon: 'home-outline',
       rows: [
-        { label: 'Select State :', value: getOptionLabel(STATES, details.residential.state) },
-        { label: 'Select District :', value: getOptionLabel(DISTRICTS, details.residential.district) },
-        { label: 'Select Taluka :', value: getOptionLabel(TALUKAS, details.residential.taluka) },
-        { label: 'Select Village/City :', value: getOptionLabel(VILLAGES, details.residential.village) },
-        { label: 'Select Block :', value: getOptionLabel(BLOCKS, details.residential.block) },
+        { label: 'Select State :', value: resolve(details.residential.state) },
+        { label: 'Select District :', value: resolve(details.residential.district) },
+        { label: 'Select Taluka :', value: resolve(details.residential.taluka) },
+        { label: 'Select Village/City :', value: resolve(details.residential.village) },
+        { label: 'Select Block :', value: resolve(details.residential.block) },
         { label: 'Panchayat Name :', value: details.residential.panchayat },
         { label: 'Police Station Name :', value: details.residential.policeStation },
         { label: 'Post Office Name :', value: details.residential.postOffice },
@@ -132,7 +121,7 @@ function PreviewScreen({
       rows: [
         {
           label: 'Beneficiary Existing Pump *',
-          value: getOptionLabel(YES_NO, details.beneficiaryExistingPump),
+          value: resolve(details.beneficiaryExistingPump),
         },
       ],
     },
@@ -140,11 +129,11 @@ function PreviewScreen({
       title: 'Location Address',
       icon: 'location-outline',
       rows: [
-        { label: 'Select State :', value: getOptionLabel(STATES, details.location.state) },
-        { label: 'Select District :', value: getOptionLabel(DISTRICTS, details.location.district) },
-        { label: 'Select Taluka :', value: getOptionLabel(TALUKAS, details.location.taluka) },
-        { label: 'Select Village/City :', value: getOptionLabel(VILLAGES, details.location.village) },
-        { label: 'Select Block :', value: getOptionLabel(BLOCKS, details.location.block) },
+        { label: 'Select State :', value: resolve(details.location.state) },
+        { label: 'Select District :', value: resolve(details.location.district) },
+        { label: 'Select Taluka :', value: resolve(details.location.taluka) },
+        { label: 'Select Village/City :', value: resolve(details.location.village) },
+        { label: 'Select Block :', value: resolve(details.location.block) },
         { label: 'Panchayat Name :', value: details.location.panchayat },
         { label: 'Police Station Name :', value: details.location.policeStation },
         { label: 'Post Office Name :', value: details.location.postOffice },
@@ -161,10 +150,10 @@ function PreviewScreen({
       title: 'Required Pump Details',
       icon: 'construct-outline',
       rows: [
-        { label: 'Pump Capacity :', value: getOptionLabel(PUMP_CAPACITY, details.pumpCapacity) },
-        { label: 'Pump Type :', value: getOptionLabel(PUMP_TYPE, details.pumpType) },
-        { label: 'Pump Sub Type :', value: getOptionLabel(PUMP_SUB_TYPE, details.pumpSubType) },
-        { label: 'Controller Type :', value: getOptionLabel(CONTROLLER_TYPE, details.controllerType) },
+        { label: 'Pump Capacity :', value: resolve(details.pumpCapacity) },
+        { label: 'Pump Type :', value: resolve(details.pumpType) },
+        { label: 'Pump Sub Type :', value: resolve(details.pumpSubType) },
+        { label: 'Controller Type :', value: resolve(details.controllerType) },
         { label: 'Pump Capacity :', value: details.farmerContribution },
       ],
     },
@@ -172,12 +161,12 @@ function PreviewScreen({
       title: 'Irrigation Details',
       icon: 'leaf-outline',
       rows: [
-        { label: 'Crop Type (Last Year) :', value: getOptionLabel(CROP_TYPE, details.cropTypeLast) },
+        { label: 'Crop Type (Last Year) :', value: resolve(details.cropTypeLast) },
         { label: 'Crop Count (Last Year) :', value: details.cropCountLast },
-        { label: 'Crop Type (Last To Last Year) :', value: getOptionLabel(CROP_TYPE, details.cropTypeLastToLast) },
+        { label: 'Crop Type (Last To Last Year) :', value: resolve(details.cropTypeLastToLast) },
         { label: 'Crop Count (Last To Last Year) :', value: details.cropCountLastToLast },
-        { label: 'Source Of Irrigation :', value: getOptionLabel(SOURCE_OF_IRRIGATION, details.sourceOfIrrigation) },
-        { label: 'Source Of Water :', value: getOptionLabel(SOURCE_OF_WATER, details.sourceOfWater) },
+        { label: 'Source Of Irrigation :', value: resolve(details.sourceOfIrrigation) },
+        { label: 'Source Of Water :', value: resolve(details.sourceOfWater) },
       ],
     },
   ];

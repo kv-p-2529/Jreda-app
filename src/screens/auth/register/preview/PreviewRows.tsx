@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { PickedFile } from './registrationSchemas';
+import { PickedFile } from '../registrationSchemas';
 
 // Presentational rows for the registration Preview (step 4): a read-only
 // label/value row, an uploaded-document status row, and a declaration checkbox.

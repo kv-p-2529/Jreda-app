@@ -17,7 +17,7 @@ import {
   DocumentsValues,
   PickedFile,
   documentsSchema,
-} from './registrationSchemas';
+} from '../registrationSchemas';
 
 // Step 3 — document upload. Tapping a tile opens the native document picker
 // (Storage Access Framework on Android, the document browser on iOS) so the
