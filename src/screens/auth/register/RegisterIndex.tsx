@@ -46,16 +46,12 @@ import { getFullUrl } from '@/services/baseService';
 
 type Step = 'aadhaar' | 'otp' | 'details' | 'documents' | 'preview' | 'payment';
 
-// Mocked IDs and fee structure — replace with values from the registration
-// API response once the backend is live. The fee breakdown (registration +
-// convenience + GST) is reused by both the Payment screen and the success
-// modal, so keep them in one place.
+// Mocked IDs — replace with values from the registration API response once the
+// backend is live. The payable amount is no longer mocked here: it comes from
+// POST /payment/initiate (see `paymentOrder`).
 const REFERENCE_NO = 'TEMP-KUSUM-2026-0123';
 const APPLICATION_ID = 'KUSUM-2026-000123';
 const PAYMENT_ID = 'PAY-JH-2026-000456878';
-const REGISTRATION_FEE = 500;
-const CONVENIENCE_FEE = 20;
-const GST_PERCENT = 18;
 
 function RegisterIndex() {
   const {
@@ -66,6 +62,8 @@ function RegisterIndex() {
     registerResumeApi,
     registerSectionUpdateApi,
     registerPreviewApi,
+    paymentInitiateApi,
+    paymentStatusApi,
   } = authApi();
 
   const navigation = useNavigation<any>();
@@ -98,6 +96,16 @@ function RegisterIndex() {
   // Real payment id from a successful charge; falls back to the placeholder
   // while the backend (which would mint the application id) isn't live.
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  // Order created by POST /payment/initiate when the user reaches the payment
+  // step. Its `amount` (in rupees) is what the Payment screen renders and what
+  // the Razorpay checkout is bound to; its `order_id` keys the status poll.
+  const [paymentOrder, setPaymentOrder] = useState<{
+    order_id: string;
+    razorpay_order_id: string | null;
+    amount: number;
+    currency: string;
+    payment_status: string;
+  } | null>(null);
   // Registration session token from POST /registration/start. Threaded into the
   // resume / section-update / preview calls that all key off it.
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -158,14 +166,15 @@ function RegisterIndex() {
     return 'Complete your Registration';
   }, [step]);
 
+  // The payable comes straight from the initiate API now (no client-side fee /
+  // GST / convenience math). Falls back to ₹0.00 until the order is created.
   const amountString = useMemo(() => {
-    const base = REGISTRATION_FEE + CONVENIENCE_FEE;
-    const gst = (base * GST_PERCENT) / 100;
-    return `₹${(base + gst).toLocaleString('en-IN', {
+    const amt = paymentOrder?.amount ?? 0;
+    return `₹${amt.toLocaleString('en-IN', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
-  }, []);
+  }, [paymentOrder]);
 
   const dateString = useMemo(() => {
     const d = new Date();
@@ -191,7 +200,7 @@ function RegisterIndex() {
       paymentDate: dateString,
       bankReferenceNo: '-',
       amount: amountString,
-      orderNumber: REFERENCE_NO,
+      orderNumber: paymentOrder?.order_id ?? REFERENCE_NO,
       paymentMode: 'UPI',
       applicationNumber: APPLICATION_ID,
       mobileNumber: detailsData?.mobile ?? '-',
@@ -230,36 +239,103 @@ function RegisterIndex() {
         detailsData?.controllerType,
       ),
     }),
-    [aadhaarData, detailsData, paymentId, amountString, dateString, masterOptions],
+    [aadhaarData, detailsData, paymentId, amountString, dateString, masterOptions, paymentOrder],
   );
 
-  // Kick off the Razorpay checkout for the registration fee. `payRegistrationFee`
-  // never throws — it resolves to success/cancelled/failed — so we just switch
-  // on the result and open the matching modal.
+  // Poll GET /payment/status until the backend confirms the charge. Capture can
+  // lag the checkout callback by a moment, so a still-`pending` order is retried
+  // a few times before we give up. Resolves true only on a paid/successful
+  // status — the server, not the Razorpay callback, is the source of truth.
+  const confirmPaymentStatus = async (id: string): Promise<boolean> => {
+    const PAID = ['paid', 'success', 'successful', 'captured', 'completed'];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await axios.get<any>(paymentStatusApi(id));
+        const status = String(
+          res?.data?.data?.payment_status ?? '',
+        ).toLowerCase();
+        if (PAID.includes(status)) return true;
+        if (status === 'failed' || status === 'cancelled') return false;
+      } catch (err) {
+        throwError(err);
+        return false;
+      }
+      // Brief backoff before re-checking a still-pending order.
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 1500));
+    }
+    return false;
+  };
+
+  // Create the payment order the moment the user reaches the payment step. The
+  // returned `amount` (rupees) is what the Payment screen renders and what the
+  // Razorpay checkout is bound to. Re-run on each entry because the payable
+  // depends on the chosen pump capacity, which the user may have edited.
+  const initiatePaymentFun = () => {
+    setLoader('payment-init');
+    axios
+      .post<any>(paymentInitiateApi, {
+        session_token: sessionToken,
+        pump_capacity_hp: Number(detailsData?.pumpCapacity),
+      })
+      .then(res => {
+        console.log('Payment initiated', res.data?.data);
+        setPaymentOrder(res?.data?.data ?? null);
+      })
+      .catch(err => {
+        throwError(err);
+        // Couldn't create the order — drop back to preview so the user retries.
+        setStep('preview');
+      })
+      .finally(() => setLoader(''));
+  };
+
+  // Charge the registration fee against the already-created order: open the
+  // Razorpay checkout bound to it, then gate success on the server's payment
+  // status. `payRegistrationFee` never throws — it resolves success/cancelled/
+  // failed — so we switch on the result and open the matching modal.
   const handlePay = async () => {
     if (paying) return;
+    if (!paymentOrder?.order_id) {
+      showToast('Payment is still being prepared. Please wait a moment.');
+      return;
+    }
     setPaying(true);
+
+    // Razorpay needs paise; our server amount is in rupees.
     const result = await payRegistrationFee({
       fee: {
-        registrationFee: REGISTRATION_FEE,
-        convenienceFee: CONVENIENCE_FEE,
-        gstPercent: GST_PERCENT,
+        registrationFee: paymentOrder.amount,
+        convenienceFee: 0,
+        gstPercent: 0,
       },
-      referenceNo: REFERENCE_NO,
+      referenceNo: paymentOrder.order_id,
+      razorpayOrderId: paymentOrder.razorpay_order_id ?? undefined,
+      amountPaise: Math.round(paymentOrder.amount * 100),
       prefill: {
         name: detailsData?.applicantName,
         email: detailsData?.email,
         contact: detailsData?.mobile,
       },
     });
-    setPaying(false);
 
-    if (result.status === 'success') {
-      setPaymentId(result.paymentId);
-      setSuccessOpen(true);
-    } else if (result.status === 'failed' || result.status === 'cancelled') {
+    if (result.status !== 'success') {
+      setPaying(false);
       // Both cancel and hard failure land on the same retry modal; the saved
       // form data lets the user pick up where they left off.
+      if (result.status === 'failed' || result.status === 'cancelled') {
+        setFailedOpen(true);
+      }
+      return;
+    }
+
+    // Confirm with our backend before celebrating.
+    const paid = await confirmPaymentStatus(paymentOrder.order_id);
+    setPaying(false);
+
+    if (paid) {
+      setPaymentId(result.paymentId);
+      setSuccessOpen(true);
+    } else {
       setFailedOpen(true);
     }
   };
@@ -387,16 +463,19 @@ function RegisterIndex() {
             onEditDetails={() => setStep('details')}
             onEditDocuments={() => setStep('documents')}
             onBack={() => setStep('documents')}
-            onNext={() => setStep('payment')}
+            onNext={() => {
+              setStep('payment');
+              initiatePaymentFun();
+            }}
           />
         ) : null;
       case 'payment':
         return (
           <PaymentScreen
-            referenceNo={REFERENCE_NO}
-            registrationFee={REGISTRATION_FEE}
-            convenienceFee={CONVENIENCE_FEE}
-            gstPercent={GST_PERCENT}
+            referenceNo={paymentOrder?.order_id ?? REFERENCE_NO}
+            amount={paymentOrder?.amount ?? 0}
+            currency={paymentOrder?.currency ?? 'INR'}
+            initializing={loader === 'payment-init'}
             loading={paying}
             onPay={handlePay}
             onBack={() => setStep('preview')}

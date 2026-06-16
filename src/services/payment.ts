@@ -192,14 +192,30 @@ export async function payRegistrationFee(params: {
   fee: RegistrationFee;
   referenceNo: string;
   prefill?: PaymentPrefill;
+  /**
+   * Razorpay order id from our server's `/app/payment/initiate` call. When
+   * present, checkout opens bound to this order and the legacy create-order
+   * step is skipped (the order already exists server-side).
+   */
+  razorpayOrderId?: string;
+  /**
+   * Order amount in *paise* as returned by our server. Overrides the locally
+   * computed fee total so the charged amount always matches the server order
+   * (Razorpay validates the option amount against the order's amount).
+   */
+  amountPaise?: number;
 }): Promise<PaymentResult> {
-  const { fee, referenceNo, prefill } = params;
-  const amount = computeTotalPaise(fee);
+  const { fee, referenceNo, prefill, razorpayOrderId, amountPaise } = params;
+  const amount = amountPaise ?? computeTotalPaise(fee);
   const notes = { referenceNo };
 
-  // Step 1 — create the order server-side (production path only).
+  // Step 1 — obtain the order. Prefer one the caller already created via the
+  // server initiate call; otherwise fall back to the legacy create-order path
+  // (production-only). Either way the result is an order to bind checkout to.
   let order: CreateOrderResponse | null = null;
-  if (RAZORPAY_USE_SERVER_ORDER) {
+  if (razorpayOrderId) {
+    order = { orderId: razorpayOrderId, amount, currency: RAZORPAY_CURRENCY };
+  } else if (RAZORPAY_USE_SERVER_ORDER) {
     try {
       order = await createPaymentOrder({
         amount,

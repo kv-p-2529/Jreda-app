@@ -28,6 +28,41 @@ export default function authApi() {
       getFullUrl(`/app/registration/${token}/section/${section}`), // PUT
     registerPreviewApi: (token: string) => getFullUrl(`/app/registration/${token}/preview`), // GET
 
+    // Payment APIs
+    paymentInitiateApi: getFullUrl('/app/payment/initiate'), // POST
+    /*
+    payload: 
+    {
+  "session_token": "string",
+  "pump_capacity_hp": 2
+}
+  response (res?.data): 
+  {
+  "success": true,
+  "data": {
+    "order_id": "JREDA-ORD-1718000000000-A3F9",
+    "razorpay_order_id": null,
+    "amount": 7000,
+    "currency": "INR",
+    "payment_status": "pending"
+  }
+}
+    */
+    paymentStatusApi: (orderId: string) => getFullUrl(`/app/payment/status?order_id=${orderId}`), // GET
+/*
+response (res?.data):
+{
+  "success": true,
+  "data": {
+    "order_id": "JREDA-ORD-1718000000000-A3F9",
+    "razorpay_order_id": null,
+    "amount": 7000,
+    "currency": "INR",
+    "payment_status": "pending"
+  }
+}
+*/
+
     // Login APIs
     getLoginOtpApi: getFullUrl('/app/auth/request-otp'), // POST
     verifyLoginOtpApi: getFullUrl('/app/auth/verify-otp'), // POST
