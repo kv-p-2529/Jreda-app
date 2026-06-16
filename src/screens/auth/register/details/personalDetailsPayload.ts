@@ -1,30 +1,28 @@
+import { STATES, YES_NO, type MasterOptions } from '../registrationOptions';
 import {
-  APPLICANT_CATEGORY,
-  APPLICATION_CATEGORY,
-  CONTROLLER_TYPE,
-  CROP_TYPE,
-  DISTRICTS,
-  GENDER,
-  PUMP_CAPACITY,
-  PUMP_SUB_TYPE,
-  PUMP_TYPE,
-  SOURCE_OF_IRRIGATION,
-  SOURCE_OF_WATER,
-  STATES,
-  YES_NO,
-  type MasterOptions,
-} from '../registrationOptions';
-import type { PersonalDetailsValues } from '../registrationSchemas';
+  BOREWELL_WATER_SOURCE,
+  type PersonalDetailsValues,
+} from '../registrationSchemas';
 import type { LocationCascade } from './useLocationCascade';
 import type { SelectOption } from '@/components/ui/form/FormSelect';
 import { FIXED_STATE } from './registrationDefaults';
 
-// Prefer the API-provided options for a field; fall back to the static list
-// when the master list hasn't loaded yet (or doesn't cover that field).
+// Keys of MasterOptions whose value is a SelectOption[] (i.e. dropdown lists).
+// Excludes non-list entries like `rateCard` so they can't be passed to the
+// option helpers below.
+export type SelectOptionKey = {
+  [K in keyof MasterOptions]: MasterOptions[K] extends SelectOption[]
+    ? K
+    : never;
+}[keyof MasterOptions];
+
+// The API-provided options for a field, or an empty list until the master list
+// has loaded. Callers may pass a static fallback for fields not covered by the
+// master list.
 export const optionsFor = (
   options: MasterOptions | undefined,
-  key: keyof MasterOptions,
-  fallback: SelectOption[],
+  key: SelectOptionKey,
+  fallback: SelectOption[] = [],
 ): SelectOption[] => (options?.[key]?.length ? options[key]! : fallback);
 
 // Flatten every select's current options into one value→label lookup, so the
@@ -34,29 +32,28 @@ export function buildLabelMap(
   options: MasterOptions | undefined,
   cascade: LocationCascade,
 ): Record<string, string> {
-  const opt = (key: keyof MasterOptions, fallback: SelectOption[]) =>
-    optionsFor(options, key, fallback);
+  const opt = (key: SelectOptionKey) => optionsFor(options, key);
 
   const all: SelectOption[] = [
-    ...opt('applicationCategory', APPLICATION_CATEGORY),
-    ...opt('applicantCategory', APPLICANT_CATEGORY),
-    ...opt('gender', GENDER),
+    ...opt('applicationCategory'),
+    ...opt('applicantCategory'),
+    ...opt('gender'),
     ...YES_NO,
     ...STATES,
-    ...opt('district', DISTRICTS),
+    ...opt('district'),
     ...cascade.resTalukas,
     ...cascade.locTalukas,
     ...cascade.resVillages,
     ...cascade.locVillages,
     ...cascade.resBlocks,
     ...cascade.locBlocks,
-    ...opt('pumpCapacity', PUMP_CAPACITY),
-    ...opt('pumpType', PUMP_TYPE),
-    ...opt('pumpSubType', PUMP_SUB_TYPE),
-    ...opt('controllerType', CONTROLLER_TYPE),
-    ...opt('cropType', CROP_TYPE),
-    ...opt('sourceOfIrrigation', SOURCE_OF_IRRIGATION),
-    ...opt('sourceOfWater', SOURCE_OF_WATER),
+    ...opt('pumpCapacity'),
+    ...opt('pumpType'),
+    ...opt('pumpSubType'),
+    ...opt('controllerType'),
+    ...opt('cropType'),
+    ...opt('sourceOfIrrigation'),
+    ...opt('sourceOfWater'),
   ];
   const map: Record<string, string> = {};
   all.forEach(o => {
@@ -98,13 +95,13 @@ export function buildSectionPayload(
     case 2:
       return {
         res_district_code: v.residential.district,
-        res_district_name: nameOf(v.residential.district),
+        // res_district_name: nameOf(v.residential.district),
         res_taluka_code: v.residential.taluka,
-        res_taluka_name: nameOf(v.residential.taluka),
+        // res_taluka_name: nameOf(v.residential.taluka),
         res_village_code: v.residential.village,
-        res_village_name: nameOf(v.residential.village),
+        // res_village_name: nameOf(v.residential.village),
         res_block_code: v.residential.block,
-        res_block_name: nameOf(v.residential.block),
+        // res_block_name: nameOf(v.residential.block),
         res_panchayat: v.residential.panchayat,
         ...(v.residential.policeStation
           ? { res_police_station: v.residential.policeStation }
@@ -138,13 +135,13 @@ export function buildSectionPayload(
     case 4:
       return {
         loc_district_code: v.location.district,
-        loc_district_name: nameOf(v.location.district),
+        // loc_district_name: nameOf(v.location.district),
         loc_taluka_code: v.location.taluka,
-        loc_taluka_name: nameOf(v.location.taluka),
+        // loc_taluka_name: nameOf(v.location.taluka),
         loc_village_code: v.location.village,
-        loc_village_name: nameOf(v.location.village),
+        // loc_village_name: nameOf(v.location.village),
         loc_block_code: v.location.block,
-        loc_block_name: nameOf(v.location.block),
+        // loc_block_name: nameOf(v.location.block),
         loc_panchayat: v.location.panchayat,
         ...(v.location.policeStation
           ? { loc_police_station: v.location.policeStation }
@@ -173,9 +170,10 @@ export function buildSectionPayload(
       };
 
     // Section 6 — Irrigation Details. Crop fields are optional; the borewell
-    // dimensions have no inputs in this form yet, so they go up as null (the
-    // backend only requires them when water_source is a borewell).
-    case 6:
+    // dimensions only go up (as numbers) when the water source is a borewell,
+    // otherwise they're sent as null.
+    case 6: {
+      const isBorewell = v.sourceOfWater === BOREWELL_WATER_SOURCE;
       return {
         irrigation_mode: v.sourceOfIrrigation,
         water_source: v.sourceOfWater,
@@ -187,9 +185,10 @@ export function buildSectionPayload(
         ...(v.cropCountLastToLast
           ? { crop_count_y2: Number(v.cropCountLastToLast) }
           : {}),
-        borewell_size_inch: null,
-        borewell_depth_ft: null,
+        borewell_size_inch: isBorewell ? Number(v.borewellSize) : null,
+        borewell_depth_ft: isBorewell ? Number(v.borewellDepth) : null,
       };
+    }
 
     default:
       return {};
@@ -286,5 +285,7 @@ export function mapDraftToFormValues(
     cropCountLastToLast: str(draft.crop_count_y2),
     sourceOfIrrigation: str(draft.irrigation_mode),
     sourceOfWater: str(draft.water_source),
+    borewellSize: str(draft.borewell_size_inch),
+    borewellDepth: str(draft.borewell_depth_ft),
   };
 }

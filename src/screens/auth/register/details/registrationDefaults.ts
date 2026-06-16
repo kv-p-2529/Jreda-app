@@ -54,4 +54,6 @@ export const initialValues: PersonalDetailsValues = {
   cropCountLastToLast: '',
   sourceOfIrrigation: '',
   sourceOfWater: '',
+  borewellSize: '',
+  borewellDepth: '',
 };

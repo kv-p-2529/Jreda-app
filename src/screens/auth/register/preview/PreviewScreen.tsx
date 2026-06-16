@@ -11,6 +11,7 @@ import { shadowSm } from '@/utils/shadows';
 
 import { Checkbox, DocumentRow, Row } from './PreviewRows';
 import {
+  BOREWELL_WATER_SOURCE,
   DeclarationValues,
   DocumentsValues,
   PersonalDetailsValues,
@@ -167,6 +168,12 @@ function PreviewScreen({
         { label: 'Crop Count (Last To Last Year) :', value: details.cropCountLastToLast },
         { label: 'Source Of Irrigation :', value: resolve(details.sourceOfIrrigation) },
         { label: 'Source Of Water :', value: resolve(details.sourceOfWater) },
+        ...(details.sourceOfWater === BOREWELL_WATER_SOURCE
+          ? [
+              { label: 'Size of Borewell (in inch) :', value: details.borewellSize },
+              { label: 'Depth of Borewell (in ft) :', value: details.borewellDepth },
+            ]
+          : []),
       ],
     },
   ];

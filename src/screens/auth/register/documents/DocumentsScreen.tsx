@@ -41,7 +41,10 @@ type DocConfig = {
   maxLabel: string;
 };
 
-const IMAGE_PDF = ['image/jpeg', 'application/pdf'];
+const IMAGES = ['image/jpeg', 'image/png', 'image/jpg'];
+const PDF = ['application/pdf']
+
+const IMAGE_PDF = [...IMAGES, ...PDF];
 
 const DOCS: DocConfig[] = [
   {
@@ -68,9 +71,9 @@ const DOCS: DocConfig[] = [
     key: 'signature',
     icon: 'create-outline',
     title: 'Signature/Thumb Impression Of Beneficiary',
-    hint: 'JPG, JPEG, PDF - Max size: 300 KB',
-    accept: IMAGE_PDF,
-    acceptLabel: 'JPG, JPEG or PDF',
+    hint: 'JPG, JPEG, PNG - Max size: 300 KB',
+    accept: IMAGES,
+    acceptLabel: 'JPG, JPEG or PNG',
     maxBytes: 300 * KB,
     maxLabel: '300 KB',
   },
@@ -78,11 +81,11 @@ const DOCS: DocConfig[] = [
     key: 'photograph',
     icon: 'camera-outline',
     title: 'Photograph Of The Applicant/Applicants With Source Of Water',
-    hint: 'JPG, JPEG - Max size: 5 Mb',
-    accept: ['image/jpeg'],
-    acceptLabel: 'JPG or JPEG',
-    maxBytes: 5 * MB,
-    maxLabel: '5 MB',
+    hint: 'JPG, JPEG, PNG - Max size: 2 Mb',
+    accept: IMAGES,
+    acceptLabel: 'JPG, JPEG, PNG',
+    maxBytes: 2 * MB,
+    maxLabel: '2 MB',
   },
 ];
 

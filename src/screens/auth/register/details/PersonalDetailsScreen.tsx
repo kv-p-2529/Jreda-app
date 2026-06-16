@@ -10,7 +10,6 @@ import FormInput from '@/components/ui/form/FormInput';
 import FormSelect from '@/components/ui/form/FormSelect';
 import FormDate from '@/components/ui/form/FormDate';
 import FormSection from '@/components/ui/form/FormSection';
-import type { SelectOption } from '@/components/ui/form/FormSelect';
 
 // Step 2 — the big form. Address fields appear twice (residential + land
 // location) under different prefixes; we lean on rhf's nested-path support
@@ -23,37 +22,22 @@ import type { SelectOption } from '@/components/ui/form/FormSelect';
 // wiring. `personalDetailsSchema` drives the resolver — validation must be live
 // because the section saves are gated on it.
 import {
+  BOREWELL_WATER_SOURCE,
   PersonalDetailsValues,
   personalDetailsSchema,
 } from '../registrationSchemas';
 import {
-  APPLICANT_CATEGORY,
-  APPLICATION_CATEGORY,
-  BLOCKS,
-  CONTROLLER_TYPE,
-  CROP_TYPE,
-  DISTRICTS,
-  EXISTING_PUMP_CAPACITY,
-  EXISTING_PUMP_SUBTYPE,
-  EXISTING_PUMP_TYPE,
-  GENDER,
-  PUMP_CAPACITY,
-  PUMP_CAPACITY_CONTRIBUTION,
-  PUMP_CATEGORY,
-  PUMP_FUEL,
-  PUMP_SUB_TYPE,
-  PUMP_TYPE,
-  SOURCE_OF_IRRIGATION,
-  SOURCE_OF_WATER,
   SQMTR_PER_ACRE,
   STATES,
-  TALUKAS,
-  VILLAGES,
   YES_NO,
   type MasterOptions,
 } from '../registrationOptions';
 import { initialValues } from './registrationDefaults';
-import { buildLabelMap, optionsFor } from './personalDetailsPayload';
+import {
+  buildLabelMap,
+  optionsFor,
+  type SelectOptionKey,
+} from './personalDetailsPayload';
 import { useLocationCascade } from './useLocationCascade';
 import { useSectionAutosave } from './useSectionAutosave';
 
@@ -91,8 +75,7 @@ function PersonalDetailsScreen({
 
   // Prefer the API-provided options for a field; fall back to the static list
   // when the master list hasn't loaded yet (or doesn't cover that field).
-  const opt = (key: keyof MasterOptions, fallback: SelectOption[]) =>
-    optionsFor(options, key, fallback);
+  const opt = (key: SelectOptionKey) => optionsFor(options, key);
 
   // Fields that drive auto-calculated values. useWatch re-renders only this
   // component when they change (not the whole form tree).
@@ -100,6 +83,8 @@ function PersonalDetailsScreen({
   const selectedPumpCapacity = useWatch({ control, name: 'pumpCapacity' });
   const hasExistingPump =
     useWatch({ control, name: 'beneficiaryExistingPump' }) === 'yes';
+  const isBorewell =
+    useWatch({ control, name: 'sourceOfWater' }) === BOREWELL_WATER_SOURCE;
 
   // District → taluka/village/block option lists for both address sections.
   const cascade = useLocationCascade(control);
@@ -132,13 +117,13 @@ function PersonalDetailsScreen({
     setValue('location.areaInSqMtr', sqMtr);
   }, [areaInAcres, setValue]);
 
-  // Farmer contribution (INR) is auto-filled from the selected pump capacity.
+  // Farmer contribution (INR) is auto-filled from the selected pump capacity,
+  // looked up against the master list's rate_card (hp → amount_rs). Stays blank
+  // until the master list has loaded or if it doesn't cover that capacity.
   useEffect(() => {
-    setValue(
-      'farmerContribution',
-      PUMP_CAPACITY_CONTRIBUTION[selectedPumpCapacity ?? ''] ?? '',
-    );
-  }, [selectedPumpCapacity, setValue]);
+    const hp = selectedPumpCapacity ?? '';
+    setValue('farmerContribution', options?.rateCard?.[hp] ?? '');
+  }, [selectedPumpCapacity, options, setValue]);
 
   // The button no longer triggers saving — sections persist automatically as
   // they pass validation. handleSubmit gates this on the whole form being valid,
@@ -157,7 +142,7 @@ function PersonalDetailsScreen({
           name="applicationCategory"
           label="Application Category"
           required
-          options={opt('applicationCategory', APPLICATION_CATEGORY)}
+          options={opt('applicationCategory')}
           placeholder="Please Select Application Category"
         />
         <FormInput
@@ -179,7 +164,7 @@ function PersonalDetailsScreen({
           name="applicantCategory"
           label="Applicant Category"
           required
-          options={opt('applicantCategory', APPLICANT_CATEGORY)}
+          options={opt('applicantCategory')}
           placeholder="Please Select Applicant Category"
         />
         <FormSelect
@@ -187,7 +172,7 @@ function PersonalDetailsScreen({
           name="gender"
           label="Select Gender"
           required
-          options={opt('gender', GENDER)}
+          options={opt('gender')}
         />
         <FormInput
           control={control}
@@ -223,7 +208,7 @@ function PersonalDetailsScreen({
           name="residential.district"
           label="Select District"
           required
-          options={opt('district', DISTRICTS)}
+          options={opt('district')}
           placeholder="Please Select District"
         />
         <FormSelect
@@ -231,7 +216,7 @@ function PersonalDetailsScreen({
           name="residential.taluka"
           label="Select Taluka"
           required
-          options={resTalukas.length ? resTalukas : TALUKAS}
+          options={resTalukas}
           placeholder="Please Select Taluka"
         />
         <FormSelect
@@ -239,14 +224,14 @@ function PersonalDetailsScreen({
           name="residential.village"
           label="Select Village/City"
           required
-          options={resVillages.length ? resVillages : VILLAGES}
+          options={resVillages}
         />
         <FormSelect
           control={control}
           name="residential.block"
           label="Select Block"
           required
-          options={resBlocks.length ? resBlocks : BLOCKS}
+          options={resBlocks}
           placeholder="Please Select Block"
         />
         <FormInput
@@ -298,7 +283,7 @@ function PersonalDetailsScreen({
               name="existingPumpCapacity"
               label="Pump Capacity"
               required
-              options={opt('pumpCapacity', EXISTING_PUMP_CAPACITY)}
+              options={opt('pumpCapacity')}
               placeholder="Please Select"
             />
             <FormSelect
@@ -306,7 +291,7 @@ function PersonalDetailsScreen({
               name="existingPumpType"
               label="Types of Existing Pump Subtype"
               required
-              options={opt('pumpType', EXISTING_PUMP_TYPE)}
+              options={opt('pumpType')}
               placeholder="Please Select"
             />
             <FormSelect
@@ -314,7 +299,7 @@ function PersonalDetailsScreen({
               name="existingPumpSubType"
               label="Types of Existing Pump Subtype"
               required
-              options={opt('pumpSubType', EXISTING_PUMP_SUBTYPE)}
+              options={opt('pumpSubType')}
               placeholder="Please Select"
             />
             <FormSelect
@@ -322,7 +307,7 @@ function PersonalDetailsScreen({
               name="pumpCategory"
               label="Pump Category"
               required
-              options={opt('pumpCategory', PUMP_CATEGORY)}
+              options={opt('pumpCategory')}
               placeholder="Please Select"
             />
             <FormSelect
@@ -337,7 +322,7 @@ function PersonalDetailsScreen({
               name="pumpFuel"
               label="Fuel the Pump is Working"
               required
-              options={opt('pumpFuel', PUMP_FUEL)}
+              options={opt('pumpFuel')}
               placeholder="Please Select"
             />
           </>
@@ -359,7 +344,7 @@ function PersonalDetailsScreen({
           name="location.district"
           label="Select District"
           required
-          options={opt('district', DISTRICTS)}
+          options={opt('district')}
           placeholder="Please Select District"
         />
         <FormSelect
@@ -367,7 +352,7 @@ function PersonalDetailsScreen({
           name="location.taluka"
           label="Select Taluka"
           required
-          options={locTalukas.length ? locTalukas : TALUKAS}
+          options={locTalukas}
           placeholder="Please Select Taluka"
         />
         <FormSelect
@@ -375,14 +360,14 @@ function PersonalDetailsScreen({
           name="location.village"
           label="Select Village/City"
           required
-          options={locVillages.length ? locVillages : VILLAGES}
+          options={locVillages}
         />
         <FormSelect
           control={control}
           name="location.block"
           label="Select Block"
           required
-          options={locBlocks.length ? locBlocks : BLOCKS}
+          options={locBlocks}
           placeholder="Please Select Block"
         />
         <FormInput
@@ -447,7 +432,7 @@ function PersonalDetailsScreen({
           name="pumpCapacity"
           label="Pump Capacity"
           required
-          options={opt('pumpCapacity', PUMP_CAPACITY)}
+          options={opt('pumpCapacity')}
           placeholder="Please Select Pump Capacity"
         />
         <FormSelect
@@ -455,7 +440,7 @@ function PersonalDetailsScreen({
           name="pumpType"
           label="Pump Type"
           required
-          options={opt('pumpType', PUMP_TYPE)}
+          options={opt('pumpType')}
           placeholder="Please Select Pump Type"
         />
         <FormSelect
@@ -463,7 +448,7 @@ function PersonalDetailsScreen({
           name="pumpSubType"
           label="Pump Sub Type"
           required
-          options={opt('pumpSubType', PUMP_SUB_TYPE)}
+          options={opt('pumpSubType')}
           placeholder="Please Select Pump Sub Type"
         />
         <FormSelect
@@ -471,7 +456,7 @@ function PersonalDetailsScreen({
           name="controllerType"
           label="Controller Type"
           required
-          options={opt('controllerType', CONTROLLER_TYPE)}
+          options={opt('controllerType')}
           placeholder="Please Select Controller Type"
         />
         <FormInput
@@ -491,7 +476,7 @@ function PersonalDetailsScreen({
           control={control}
           name="cropTypeLast"
           label="Crop Type (Last Year)"
-          options={opt('cropType', CROP_TYPE)}
+          options={opt('cropType')}
         />
         <FormInput
           control={control}
@@ -504,7 +489,7 @@ function PersonalDetailsScreen({
           control={control}
           name="cropTypeLastToLast"
           label="Crop Type (Last To Last Year)"
-          options={opt('cropType', CROP_TYPE)}
+          options={opt('cropType')}
         />
         <FormInput
           control={control}
@@ -518,15 +503,38 @@ function PersonalDetailsScreen({
           name="sourceOfIrrigation"
           label="Source Of Irrigation"
           required
-          options={opt('sourceOfIrrigation', SOURCE_OF_IRRIGATION)}
+          options={opt('sourceOfIrrigation')}
         />
         <FormSelect
           control={control}
           name="sourceOfWater"
           label="Source Of Water"
           required
-          options={opt('sourceOfWater', SOURCE_OF_WATER)}
+          options={opt('sourceOfWater')}
         />
+
+        {/* Borewell dimensions — required only when the water source is a
+            borewell. Hidden (and not validated) for every other source. */}
+        {isBorewell && (
+          <>
+            <FormInput
+              control={control}
+              name="borewellSize"
+              label="Size of Borewell (in inch)"
+              required
+              placeholder="Size of Borewell (in inch)"
+              keyboardType="decimal-pad"
+            />
+            <FormInput
+              control={control}
+              name="borewellDepth"
+              label="Depth of Borewell (in ft)"
+              required
+              placeholder="Depth of Borewell (in ft)"
+              keyboardType="decimal-pad"
+            />
+          </>
+        )}
       </FormSection>
 
       {/* Note */}

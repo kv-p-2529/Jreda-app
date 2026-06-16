@@ -109,7 +109,16 @@ const personalDetailsBase = z.object({
   cropCountLastToLast: z.string().optional(),
   sourceOfIrrigation: z.string().min(1, 'Required'),
   sourceOfWater: z.string().min(1, 'Required'),
+  // Borewell dimensions — required only when sourceOfWater is a borewell
+  // (enforced in the superRefine below). Optional at the field level so the
+  // form validates fine for other water sources.
+  borewellSize: z.string().optional(),
+  borewellDepth: z.string().optional(),
 });
+
+// The master-list `water_sources` value that reveals the borewell dimension
+// fields. Shared with the screen so the UI and validation stay in sync.
+export const BOREWELL_WATER_SOURCE = 'BoreWell';
 
 // Existing-pump fields are required only when the beneficiary has a pump
 // (Generation stays optional — no asterisk in the UI). Reused by both the full
@@ -138,8 +147,36 @@ const requireExistingPumpFields = (
   }
 };
 
-export const personalDetailsSchema =
-  personalDetailsBase.superRefine(requireExistingPumpFields);
+// Borewell size & depth are required (and must be numeric) only when the
+// selected water source is a borewell. Reused by the full form schema and the
+// section-6 validation in `isSectionValid`.
+const requireBorewellFields = (
+  data: { sourceOfWater?: string } & Record<string, unknown>,
+  ctx: z.RefinementCtx,
+) => {
+  if (data.sourceOfWater === BOREWELL_WATER_SOURCE) {
+    (['borewellSize', 'borewellDepth'] as const).forEach(key => {
+      const val = data[key];
+      if (!val) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Required',
+          path: [key],
+        });
+      } else if (!/^\d+(\.\d+)?$/.test(String(val))) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Invalid number',
+          path: [key],
+        });
+      }
+    });
+  }
+};
+
+export const personalDetailsSchema = personalDetailsBase
+  .superRefine(requireExistingPumpFields)
+  .superRefine(requireBorewellFields);
 export type PersonalDetailsValues = z.infer<typeof personalDetailsSchema>;
 
 // Which form fields belong to each backend section (1–6). Used by the auto-save
@@ -181,6 +218,8 @@ const SECTION_FIELD_KEYS = {
     'cropCountLastToLast',
     'sourceOfIrrigation',
     'sourceOfWater',
+    'borewellSize',
+    'borewellDepth',
   ],
 } as const satisfies Record<number, readonly (keyof PersonalDetailsValues)[]>;
 
@@ -202,7 +241,11 @@ export function isSectionValid(
 
   const picked = personalDetailsBase.pick(mask);
   const schema =
-    section === 3 ? picked.superRefine(requireExistingPumpFields) : picked;
+    section === 3
+      ? picked.superRefine(requireExistingPumpFields)
+      : section === 6
+      ? picked.superRefine(requireBorewellFields)
+      : picked;
 
   return schema.safeParse(values).success;
 }

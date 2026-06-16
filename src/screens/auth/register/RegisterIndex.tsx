@@ -22,19 +22,7 @@ import {
   DocumentsValues,
   PersonalDetailsValues,
 } from './registrationSchemas';
-import {
-  APPLICANT_CATEGORY,
-  APPLICATION_CATEGORY,
-  CONTROLLER_TYPE,
-  DISTRICTS,
-  GENDER,
-  getOptionLabel,
-  PUMP_CAPACITY,
-  PUMP_CATEGORY,
-  PUMP_SUB_TYPE,
-  PUMP_TYPE,
-  buildMasterOptions,
-} from './registrationOptions';
+import { getOptionLabel, buildMasterOptions } from './registrationOptions';
 import authApi from '@/api/authApi';
 import throwError from '@/api/throwError';
 import axios from 'axios';
@@ -210,30 +198,39 @@ function RegisterIndex() {
       farmerName: detailsData?.applicantName ?? '-',
       fatherHusbandName: detailsData?.fatherName ?? '-',
       applicationCategory: getOptionLabel(
-        APPLICATION_CATEGORY,
+        masterOptions.applicationCategory,
         detailsData?.applicationCategory,
       ),
       applicantType: getOptionLabel(
-        APPLICANT_CATEGORY,
+        masterOptions.applicantCategory,
         detailsData?.applicantCategory,
       ),
       aadharLast4: aadhaarData?.aadhaar_number?.slice(-4) ?? '-',
-      gender: getOptionLabel(GENDER, detailsData?.gender),
+      gender: getOptionLabel(masterOptions.gender, detailsData?.gender),
       locationDistrict: getOptionLabel(
-        DISTRICTS,
+        masterOptions.district,
         detailsData?.location?.district,
       ),
       emailId: detailsData?.email || '-',
-      pumpCapacity: getOptionLabel(PUMP_CAPACITY, detailsData?.pumpCapacity),
-      pumpCategory: getOptionLabel(PUMP_CATEGORY, detailsData?.pumpCategory),
-      pumpSubType: getOptionLabel(PUMP_SUB_TYPE, detailsData?.pumpSubType),
-      pumpType: getOptionLabel(PUMP_TYPE, detailsData?.pumpType),
+      pumpCapacity: getOptionLabel(
+        masterOptions.pumpCapacity,
+        detailsData?.pumpCapacity,
+      ),
+      pumpCategory: getOptionLabel(
+        masterOptions.pumpCategory,
+        detailsData?.pumpCategory,
+      ),
+      pumpSubType: getOptionLabel(
+        masterOptions.pumpSubType,
+        detailsData?.pumpSubType,
+      ),
+      pumpType: getOptionLabel(masterOptions.pumpType, detailsData?.pumpType),
       controllerType: getOptionLabel(
-        CONTROLLER_TYPE,
+        masterOptions.controllerType,
         detailsData?.controllerType,
       ),
     }),
-    [aadhaarData, detailsData, paymentId, amountString, dateString],
+    [aadhaarData, detailsData, paymentId, amountString, dateString, masterOptions],
   );
 
   // Kick off the Razorpay checkout for the registration fee. `payRegistrationFee`
@@ -278,16 +275,7 @@ function RegisterIndex() {
       </View>
     );
   }
-
-  const steps: Record<number, string | any> = {
-    1: 'aadhaar',
-    2: 'otp',
-    3: 'details',
-    4: 'documents',
-    5: 'preview',
-    6: 'payment',
-  };
-
+  
   const resumeRegisterationFun = (token: string) => {
     setLoader('resume');
     axios
@@ -336,23 +324,6 @@ function RegisterIndex() {
       .catch(err => throwError(err))
       .finally(() => setLoader(''));
   };
-
-  // const updateFormStatus = (section: string | number, retriesLeft = 2) => {
-  //   axios
-  //     .put(registerSectionUpdateApi(sessionToken ?? '', section))
-  //     .then(res => {
-  //       console.log('Form status updated', res.data);
-  //     })
-  //     .catch(err => {
-  //       // Retry up to twice (3 attempts total), then give up and surface the
-  //       // error instead of looping forever.
-  //       if (retriesLeft > 0) {
-  //         updateFormStatus(section, retriesLeft - 1);
-  //       } else {
-  //         throwError(err);
-  //       }
-  //     });
-  // };
 
   const renderStep = () => {
     switch (step) {
